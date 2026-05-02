@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* ✅ Dark mode global fix */
+body {
+  background-color: white;
+}
+
+.dark body {
+  background-color: #020617; /* same as gray-950 */
+}
