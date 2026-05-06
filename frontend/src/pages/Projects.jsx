@@ -3,6 +3,7 @@ import ProjectsTable from "../components/projects/ProjectsTable";
 import AddProjectModal from "../components/projects/AddProjectModal";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
+import { safeParse } from "../utils/storageHelper";
 
 const Projects = () => {
   const { user } = useAuth();
@@ -19,10 +20,7 @@ const Projects = () => {
   const canManageProjects = isAdmin || isPM;
   const readOnly = isWorker || isAccountant;
 
-  const [projects, setProjects] = useState(() => {
-    const stored = localStorage.getItem("projects");
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [projects, setProjects] = useState(() => safeParse("projects"));
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProject, setEditProject] = useState(null);
@@ -39,7 +37,9 @@ const Projects = () => {
     if (!canManageProjects) return;
 
     if (editProject) {
-      setProjects((prev) => prev.map((p) => (p.id === project.id ? project : p)));
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? project : p)),
+      );
     } else {
       setProjects((prev) => [...prev, project]);
     }
@@ -69,7 +69,7 @@ const Projects = () => {
             : p.completedAt;
 
         return { ...p, status: newStatus, completedAt };
-      })
+      }),
     );
   };
 
@@ -85,14 +85,16 @@ const Projects = () => {
   }, [projects, search, statusFilter, supervisorFilter]);
 
   const supervisors = useMemo(() => {
-    return [...new Set((projects || []).map((p) => p.supervisor).filter(Boolean))];
+    return [
+      ...new Set((projects || []).map((p) => p.supervisor).filter(Boolean)),
+    ];
   }, [projects]);
 
   return (
     <div className="space-y-6 p-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Projects</h1>
+          <h1 className="text-2xl dark:text-white font-bold">Projects</h1>
           {readOnly && (
             <p className="text-sm text-gray-500 mt-1">
               Read-only access for your role.
@@ -113,7 +115,7 @@ const Projects = () => {
         )}
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3">
+      <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow flex flex-wrap gap-3">
         <input
           type="text"
           placeholder="Search project..."
@@ -152,7 +154,7 @@ const Projects = () => {
             setStatusFilter("");
             setSupervisorFilter("");
           }}
-          className="bg-gray-200 px-3 py-2 rounded"
+          className="bg-gray-200 dark:bg-gray-900  px-3 py-2 rounded"
         >
           Reset
         </button>

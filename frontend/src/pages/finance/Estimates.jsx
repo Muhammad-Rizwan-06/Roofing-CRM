@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import EstimateModal from "../../components/finance/EstimateModal";
 import { estimatesMock } from "../../data/financeMockData";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const calcTotal = (items = [], taxRate = 0) => {
   const subtotal = items.reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * Number(taxRate || 0);
 };
@@ -36,15 +37,18 @@ const Estimates = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [projects] = useState(() => JSON.parse(localStorage.getItem("projects")) || []);
-  const [leads, setLeads] = useState(() => JSON.parse(localStorage.getItem("leads")) || []);
+  const [projects] = useState(() => safeParse("projects"));
+  const [leads, setLeads] = useState(() => safeParse("leads"));
 
   const [estimates, setEstimates] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("estimates")) || null;
     return stored ?? estimatesMock;
   });
 
-  useEffect(() => localStorage.setItem("estimates", JSON.stringify(estimates)), [estimates]);
+  useEffect(
+    () => localStorage.setItem("estimates", JSON.stringify(estimates)),
+    [estimates],
+  );
 
   // Keep leads fresh (because leads can change on leads page)
   useEffect(() => {
@@ -60,7 +64,10 @@ const Estimates = () => {
     const total = estimates.length;
     const accepted = estimates.filter((e) => e.status === "Accepted").length;
     const sent = estimates.filter((e) => e.status === "Sent").length;
-    const totalValue = estimates.reduce((s, e) => s + calcTotal(e.items, e.taxRate), 0);
+    const totalValue = estimates.reduce(
+      (s, e) => s + calcTotal(e.items, e.taxRate),
+      0,
+    );
     return { total, accepted, sent, totalValue };
   }, [estimates]);
 
@@ -75,14 +82,17 @@ const Estimates = () => {
 
     const currentLeads = JSON.parse(localStorage.getItem("leads")) || [];
     const updated = currentLeads.map((l) =>
-      Number(l.id) === Number(leadId) ? { ...l, status: newStage } : l
+      Number(l.id) === Number(leadId) ? { ...l, status: newStage } : l,
     );
     syncLeadsToStorage(updated);
   };
 
   const addEstimate = (payload) => {
     const leadId = payload.leadId || null;
-    const leadName = leadId ? (leads.find((l) => Number(l.id) === Number(leadId))?.name || payload.customer) : null;
+    const leadName = leadId
+      ? leads.find((l) => Number(l.id) === Number(leadId))?.name ||
+        payload.customer
+      : null;
 
     const newEstimate = {
       id: Date.now(),
@@ -98,19 +108,24 @@ const Estimates = () => {
     if (leadId) {
       // Draft doesn't move, Sent/Accepted/Rejected will move.
       // BUT: most companies move stage to "Estimate Sent" when estimate is created.
-      const stage = payload.status === "Draft" ? "Estimate Sent" : payload.status;
-      updateLeadStage(leadId, stage === "Estimate Sent" ? "Sent" : payload.status);
+      const stage =
+        payload.status === "Draft" ? "Estimate Sent" : payload.status;
+      updateLeadStage(
+        leadId,
+        stage === "Estimate Sent" ? "Sent" : payload.status,
+      );
     }
 
     // clear query param after modal saves (so refresh doesn't auto-open)
     if (prefillLeadId) setSearchParams({});
   };
 
-  const remove = (id) => setEstimates((prev) => prev.filter((x) => x.id !== id));
+  const remove = (id) =>
+    setEstimates((prev) => prev.filter((x) => x.id !== id));
 
   const updateStatus = (id, status) => {
     setEstimates((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, status } : x))
+      prev.map((x) => (x.id === id ? { ...x, status } : x)),
     );
 
     const estimate = estimates.find((e) => e.id === id);
@@ -149,11 +164,18 @@ const Estimates = () => {
       estimateId: estimate.id,
     };
 
-    localStorage.setItem("projects", JSON.stringify([...existingProjects, newProject]));
+    localStorage.setItem(
+      "projects",
+      JSON.stringify([...existingProjects, newProject]),
+    );
 
     // link estimate -> project
-    const updatedEstimates = (JSON.parse(localStorage.getItem("estimates")) || []).map((e) =>
-      e.id === estimate.id ? { ...e, projectId, projectName: newProject.name } : e
+    const updatedEstimates = (
+      JSON.parse(localStorage.getItem("estimates")) || []
+    ).map((e) =>
+      e.id === estimate.id
+        ? { ...e, projectId, projectName: newProject.name }
+        : e,
     );
     localStorage.setItem("estimates", JSON.stringify(updatedEstimates));
     setEstimates(updatedEstimates);
@@ -161,7 +183,9 @@ const Estimates = () => {
     // remove lead (to match your existing convert behavior)
     if (estimate.leadId) {
       const currentLeads = JSON.parse(localStorage.getItem("leads")) || [];
-      const updatedLeads = currentLeads.filter((l) => Number(l.id) !== Number(estimate.leadId));
+      const updatedLeads = currentLeads.filter(
+        (l) => Number(l.id) !== Number(estimate.leadId),
+      );
       syncLeadsToStorage(updatedLeads);
     }
 
@@ -173,7 +197,9 @@ const Estimates = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Estimates</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Estimates
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Linked to Leads/Projects (Draft → Sent → Accepted/Rejected)
           </p>
@@ -195,15 +221,21 @@ const Estimates = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{metrics.total}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {metrics.total}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Sent</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{metrics.sent}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {metrics.sent}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Accepted</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{metrics.accepted}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {metrics.accepted}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total Value</p>
@@ -237,7 +269,10 @@ const Estimates = () => {
               const total = calcTotal(e.items, e.taxRate);
 
               return (
-                <tr key={e.id} className="border-t border-gray-100 dark:border-gray-800">
+                <tr
+                  key={e.id}
+                  className="border-t border-gray-100 dark:border-gray-800"
+                >
                   <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
                     {e.estimateNo}
                   </td>
@@ -297,7 +332,10 @@ const Estimates = () => {
 
             {estimates.length === 0 && (
               <tr>
-                <td className="p-6 text-center text-gray-500 dark:text-gray-300" colSpan={7}>
+                <td
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                  colSpan={7}
+                >
                   No estimates yet.
                 </td>
               </tr>

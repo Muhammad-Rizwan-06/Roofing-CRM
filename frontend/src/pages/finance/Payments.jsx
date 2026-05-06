@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PaymentModal from "../../components/finance/PaymentModal";
 import { paymentsMock } from "../../data/financeMockData";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -18,7 +19,7 @@ const calcInvoiceTotal = (inv) => {
   const taxRate = Number(inv?.taxRate || 0);
   const subtotal = items.reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * taxRate;
 };
@@ -29,20 +30,21 @@ const Payments = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [invoices, setInvoices] = useState(
-    () => JSON.parse(localStorage.getItem("invoices")) || []
-  );
+  const [invoices, setInvoices] = useState(() => safeParse("invoices"));
 
   const [payments, setPayments] = useState(() => {
-    const stored = JSON.parse(localStorage.getItem("payments")) || null;
-    return stored ?? paymentsMock;
+    const stored = safeParse("payments");
+    return stored.length > 0 ? stored : paymentsMock;
   });
 
-  useEffect(() => localStorage.setItem("payments", JSON.stringify(payments)), [payments]);
+  useEffect(
+    () => localStorage.setItem("payments", JSON.stringify(payments)),
+    [payments],
+  );
 
   // refresh invoices when page loads
   useEffect(() => {
-    setInvoices(JSON.parse(localStorage.getItem("invoices")) || []);
+    setInvoices(safeParse("invoices"));
   }, []);
 
   // auto-open when coming from invoice context
@@ -51,7 +53,10 @@ const Payments = () => {
   }, [prefillInvoiceId]);
 
   const metrics = useMemo(() => {
-    const totalPayments = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const totalPayments = payments.reduce(
+      (s, p) => s + Number(p.amount || 0),
+      0,
+    );
     const count = payments.length;
     return { totalPayments, count };
   }, [payments]);
@@ -65,12 +70,14 @@ const Payments = () => {
       };
 
       // update invoice totals in localStorage
-      const currentInvoices = JSON.parse(localStorage.getItem("invoices")) || [];
+      const currentInvoices =
+        JSON.parse(localStorage.getItem("invoices")) || [];
       const updatedInvoices = currentInvoices.map((inv) => {
         if (inv.id !== payload.invoiceId) return inv;
 
         const total = calcInvoiceTotal(inv);
-        const amountPaid = Number(inv.amountPaid || 0) + Number(payload.amount || 0);
+        const amountPaid =
+          Number(inv.amountPaid || 0) + Number(payload.amount || 0);
 
         let status = "Partially Paid";
         if (amountPaid <= 0) status = "Unpaid";
@@ -95,7 +102,9 @@ const Payments = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Payments</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Payments
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Record payments against invoices (linked)
           </p>
@@ -148,17 +157,33 @@ const Payments = () => {
 
           <tbody>
             {payments.map((p) => (
-              <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800">
+              <tr
+                key={p.id}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
                   {p.paymentNo}
                 </td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{p.invoiceNo}</td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{p.customer}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{p.date}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{p.method}</td>
-                <td className="p-3 text-gray-800 dark:text-gray-100">{money(p.amount)}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {p.invoiceNo}
+                </td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {p.customer}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {p.date}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {p.method}
+                </td>
+                <td className="p-3 text-gray-800 dark:text-gray-100">
+                  {money(p.amount)}
+                </td>
                 <td className="p-3 text-right">
-                  <button onClick={() => remove(p.id)} className="text-red-600 hover:underline">
+                  <button
+                    onClick={() => remove(p.id)}
+                    className="text-red-600 hover:underline"
+                  >
                     Delete
                   </button>
                 </td>
@@ -167,7 +192,10 @@ const Payments = () => {
 
             {payments.length === 0 && (
               <tr>
-                <td className="p-6 text-center text-gray-500 dark:text-gray-300" colSpan={7}>
+                <td
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                  colSpan={7}
+                >
                   No payments yet.
                 </td>
               </tr>

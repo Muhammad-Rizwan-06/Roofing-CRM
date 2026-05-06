@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import LeadsTable from "../components/leads/LeadsTable";
 import AddLeadModal from "../components/leads/AddLeadModal";
+import { safeParse } from "../utils/storageHelper";
 
 const normalizeLeadStatus = (status) => {
   // migrate old statuses -> pipeline equivalents
@@ -14,7 +15,7 @@ const calcEstimateTotal = (estimate) => {
   const taxRate = Number(estimate?.taxRate || 0);
   const subtotal = items.reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * taxRate;
 };
@@ -88,7 +89,7 @@ const Leads = () => {
 
     localStorage.setItem(
       "projects",
-      JSON.stringify([...existingProjects, newProject])
+      JSON.stringify([...existingProjects, newProject]),
     );
 
     // If we converted via accepted estimate, link that estimate to the project
@@ -101,7 +102,7 @@ const Leads = () => {
               projectName: newProject.name,
               customer: lead.name,
             }
-          : e
+          : e,
       );
       localStorage.setItem("estimates", JSON.stringify(updatedEstimates));
     }
@@ -115,7 +116,7 @@ const Leads = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Leads</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Leads</h1>
 
         <button
           onClick={() => setOpen(true)}

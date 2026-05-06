@@ -196,7 +196,8 @@ const Materials = () => {
             Inventory Materials
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
-            Track stock quantity, unit price and suppliers (used by Purchase Orders)
+            Track stock quantity, unit price and suppliers (used by Purchase
+            Orders)
           </p>
           {readOnly && (
             <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
@@ -206,7 +207,9 @@ const Materials = () => {
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Low Stock Items</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Low Stock Items
+          </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {lowStockCount}
           </p>
@@ -237,7 +240,7 @@ const Materials = () => {
           </select>
 
           <button
-            className="bg-gray-200 hover:bg-gray-300 px-4 py-3 rounded-xl"
+            className="bg-gray-200 dark:bg-gray-700  hover:bg-gray-600 px-4 py-3 rounded-xl"
             onClick={() => {
               setSearch("");
               setSupplierFilter("");
@@ -277,13 +280,17 @@ const Materials = () => {
               <input
                 className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                 value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="e.g. Shingles"
               />
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Supplier (optional)</label>
+              <label className="text-xs text-gray-500">
+                Supplier (optional)
+              </label>
               <select
                 className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                 value={form.supplierId}
@@ -305,7 +312,9 @@ const Materials = () => {
               <input
                 className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                 value={form.sku}
-                onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, sku: e.target.value }))
+                }
                 placeholder="e.g. SH-001"
               />
             </div>
@@ -381,7 +390,9 @@ const Materials = () => {
               <th className="px-4 py-3">Reorder</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Adjust</th>
-              {canManageInventory && <th className="px-4 py-3 text-right">Actions</th>}
+              {canManageInventory && (
+                <th className="px-4 py-3 text-right">Actions</th>
+              )}
             </tr>
           </thead>
 
@@ -397,7 +408,9 @@ const Materials = () => {
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
                     {m.name}
                     {m.sku ? (
-                      <span className="ml-2 text-xs text-gray-500">({m.sku})</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({m.sku})
+                      </span>
                     ) : null}
                   </td>
 
@@ -420,7 +433,9 @@ const Materials = () => {
                   <td className="px-4 py-3">
                     <span
                       className={`px-3 py-1 text-xs rounded-full ${
-                        low ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+                        low
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
                       }`}
                     >
                       {low ? "Low Stock" : "OK"}
@@ -432,7 +447,7 @@ const Materials = () => {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
+                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
                           onClick={() => adjustStock(m.id, -1)}
                           title="Decrease stock"
                         >
@@ -440,7 +455,7 @@ const Materials = () => {
                         </button>
                         <button
                           type="button"
-                          className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
+                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
                           onClick={() => adjustStock(m.id, +1)}
                           title="Increase stock"
                         >

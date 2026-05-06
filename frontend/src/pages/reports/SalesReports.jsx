@@ -10,6 +10,7 @@ import {
   XAxis,
   Legend,
 } from "recharts";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -18,18 +19,19 @@ const money = (n) =>
     maximumFractionDigits: 0,
   }).format(Number(n || 0));
 
-const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"];
+const COLORS = [
+  "#6366f1",
+  "#22c55e",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#14b8a6",
+];
 
 const SalesReports = () => {
-  const leads = useMemo(() => JSON.parse(localStorage.getItem("leads")) || [], []);
-  const estimates = useMemo(
-    () => JSON.parse(localStorage.getItem("estimates")) || [],
-    []
-  );
-  const projects = useMemo(
-    () => JSON.parse(localStorage.getItem("projects")) || [],
-    []
-  );
+  const leads = useMemo(() => safeParse("leads"), []);
+  const estimates = useMemo(() => safeParse("estimates"), []);
+  const projects = useMemo(() => safeParse("projects"), []);
 
   const { stageData, kpis, estimateStatusData } = useMemo(() => {
     const stageCounts = leads.reduce((acc, l) => {
@@ -45,13 +47,13 @@ const SalesReports = () => {
 
     const pipelineValue = leads.reduce(
       (s, l) => s + Number(l.estimatedValue || 0),
-      0
+      0,
     );
 
     const wonCount = leads.filter((l) => l.status === "Won").length;
 
     const leadConvertedProjects = projects.filter(
-      (p) => p.source === "Lead Conversion"
+      (p) => p.source === "Lead Conversion",
     ).length;
 
     const estStatusCounts = estimates.reduce((acc, e) => {
@@ -60,17 +62,19 @@ const SalesReports = () => {
       return acc;
     }, {});
 
-    const estimateStatusData = Object.entries(estStatusCounts).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    const estimateStatusData = Object.entries(estStatusCounts).map(
+      ([name, value]) => ({
+        name,
+        value,
+      }),
+    );
 
     const acceptedValue = estimates
       .filter((e) => e.status === "Accepted")
       .reduce((sum, e) => {
         const subtotal = (e.items || []).reduce(
           (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-          0
+          0,
         );
         return sum + subtotal + subtotal * Number(e.taxRate || 0);
       }, 0);
@@ -103,27 +107,37 @@ const SalesReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total Leads</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{kpis.leadsCount}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {kpis.leadsCount}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Pipeline Value</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{money(kpis.pipelineValue)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {money(kpis.pipelineValue)}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Won Leads</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{kpis.wonCount}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {kpis.wonCount}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Converted Projects</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{kpis.leadConvertedProjects}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {kpis.leadConvertedProjects}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Accepted Estimates Value</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{money(kpis.acceptedValue)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {money(kpis.acceptedValue)}
+          </p>
         </div>
       </div>
 
@@ -135,11 +149,18 @@ const SalesReports = () => {
           </h2>
 
           {stageData.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-300">No leads found.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              No leads found.
+            </p>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
               <PieChart>
-                <Pie data={stageData} dataKey="value" nameKey="name" outerRadius={110}>
+                <Pie
+                  data={stageData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={110}
+                >
                   {stageData.map((_, idx) => (
                     <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                   ))}
@@ -157,14 +178,21 @@ const SalesReports = () => {
           </h2>
 
           {estimateStatusData.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-300">No estimates found.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              No estimates found.
+            </p>
           ) : (
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={estimateStatusData}>
                 <XAxis dataKey="name" />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="value" fill="#6366f1" name="Count" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="value"
+                  fill="#6366f1"
+                  name="Count"
+                  radius={[6, 6, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}

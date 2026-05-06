@@ -135,7 +135,7 @@ export default function MaintenanceVisits() {
         </select>
 
         <button
-          className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+          className="px-3 py-2 rounded-lg dark:bg-gray-700 bg-gray-200 hover:bg-gray-800"
           onClick={() => {
             setSearch("");
             setStatusFilter("");

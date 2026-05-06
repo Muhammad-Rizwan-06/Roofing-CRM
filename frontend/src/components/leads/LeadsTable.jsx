@@ -20,7 +20,7 @@ const LeadsTable = ({ leads, onDelete, onConvert }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border">
       <h2 className="text-lg font-semibold mb-4">All Leads</h2>
 
       <div className="overflow-x-auto">
@@ -44,7 +44,7 @@ const LeadsTable = ({ leads, onDelete, onConvert }) => {
               </tr>
             ) : (
               leads.map((lead) => (
-                <tr key={lead.id} className="border-b hover:bg-gray-50">
+                <tr key={lead.id} className="border-b hover:bg-gray-800">
                   <td className="py-3">{lead.name}</td>
                   <td>{lead.email}</td>
                   <td>{lead.phone}</td>

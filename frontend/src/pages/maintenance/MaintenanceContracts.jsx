@@ -268,7 +268,7 @@ export default function MaintenanceContracts() {
               </div>
 
               <button
-                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 text-sm"
+                className="px-3 py-1 rounded-lg dark:bg-gray-900 bg-gray-200 hover:bg-gray-700 text-sm"
                 onClick={() => {
                   setOpen(false);
                   reset();
@@ -409,7 +409,7 @@ export default function MaintenanceContracts() {
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
+                  className="px-4 py-2 rounded-xl dark:bg-gray-700 bg-gray-200 hover:bg-gray-600"
                   onClick={() => {
                     setOpen(false);
                     reset();

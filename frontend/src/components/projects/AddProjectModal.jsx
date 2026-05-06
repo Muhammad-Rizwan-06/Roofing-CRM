@@ -82,7 +82,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-96 shadow-2xl">
         <h2 className="text-xl font-bold mb-4">
           {editProject ? "Edit Project" : "Add Project"}
         </h2>
@@ -123,7 +123,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
 
           <select
             name="status"
-            className="w-full border p-2 rounded bg-white"
+            className="w-full border p-2 rounded dark:bg-gray-900 bg-white"
             value={form.status}
             onChange={handleChange}
           >
@@ -161,7 +161,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              className="px-4 py-2 bg-gray-500 rounded hover:bg-gray-700"
             >
               Cancel
             </button>

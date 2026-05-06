@@ -22,7 +22,9 @@ const ensureLeadDefaults = (lead) => ({
 const LeadsPipeline = () => {
   const [leads, setLeads] = useState(() => {
     const storedLeads = localStorage.getItem("leads");
-    const base = storedLeads ? JSON.parse(storedLeads) : leadsData;
+    let base = storedLeads ? JSON.parse(storedLeads) : leadsData;
+    // Handle old format with .list property
+    if (!Array.isArray(base) && base?.list) base = base.list;
     return (base || []).map(ensureLeadDefaults);
   });
 
@@ -57,8 +59,8 @@ const LeadsPipeline = () => {
               ...updates,
               updatedAt: new Date().toISOString(),
             }
-          : l
-      )
+          : l,
+      ),
     );
   };
 
@@ -82,7 +84,7 @@ const LeadsPipeline = () => {
 
     localStorage.setItem(
       "projects",
-      JSON.stringify([...existingProjects, newProject])
+      JSON.stringify([...existingProjects, newProject]),
     );
 
     setLeads((prev) => prev.filter((l) => l.id !== lead.id));
@@ -103,7 +105,10 @@ const LeadsPipeline = () => {
   // ---------- Forecast metrics (industry-style) ----------
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
-    const totalValue = leads.reduce((sum, l) => sum + Number(l.estimatedValue || 0), 0);
+    const totalValue = leads.reduce(
+      (sum, l) => sum + Number(l.estimatedValue || 0),
+      0,
+    );
     const weightedForecast = leads.reduce((sum, l) => {
       const p = STAGE_PROBABILITY[l.status] ?? 0;
       return sum + Number(l.estimatedValue || 0) * p;
@@ -111,7 +116,7 @@ const LeadsPipeline = () => {
 
     const wonValue = (grouped["Won"] || []).reduce(
       (sum, l) => sum + Number(l.estimatedValue || 0),
-      0
+      0,
     );
 
     return { totalLeads, totalValue, weightedForecast, wonValue };
@@ -153,21 +158,27 @@ const LeadsPipeline = () => {
       {/* Summary (industry level) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Total Leads</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Total Leads
+          </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {metrics.totalLeads}
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Pipeline Value</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Pipeline Value
+          </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {formatMoney(metrics.totalValue)}
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Weighted Forecast</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Weighted Forecast
+          </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {formatMoney(metrics.weightedForecast)}
           </p>

@@ -16,9 +16,9 @@ const ProjectsTable = ({
   basePath = "/projects",
 }) => {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
       <table className="w-full text-left">
-        <thead className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wide">
+        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 text-sm uppercase tracking-wide">
           <tr>
             <th className="p-3">Name</th>
             <th className="p-3">Client</th>
@@ -33,12 +33,12 @@ const ProjectsTable = ({
         <tbody>
           {projects.map((project) => {
             const badgeClass =
-              statusStyles[project.status] || "bg-gray-100 text-gray-700";
+              statusStyles[project.status] || "bg-gray-100 dark:bg-gray-900 text-gray-700";
 
             return (
               <tr
                 key={project.id}
-                className="border-t hover:bg-gray-50 transition"
+                className="border-t hover:bg-gray-800 transition"
               >
                 <td className="p-3">{project.name}</td>
                 <td className="p-3">{project.client}</td>
@@ -57,7 +57,7 @@ const ProjectsTable = ({
                         onChange={(e) =>
                           onStatusChange?.(project.id, e.target.value)
                         }
-                        className="border rounded-lg px-2 py-1 text-sm bg-white"
+                        className="border rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-900"
                         title="Change project status"
                       >
                         <option value="Pending">Pending</option>

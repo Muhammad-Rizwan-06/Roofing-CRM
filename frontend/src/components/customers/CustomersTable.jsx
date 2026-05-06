@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 
 const CustomersTable = ({ customers }) => {
   return (
-    <div className="bg-white p-6 rounded-2xl shadow border">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow border">
 
-      <h2 className="text-lg font-semibold mb-4">
+      <h2 className="text-lg dark:text-white font-semibold mb-4">
         Customer List
       </h2>
 

@@ -135,23 +135,33 @@ const Dashboard = () => {
     employees: [],
   });
 
+  // Helper to safely parse localStorage data and ensure it's always an array
+  const safeParse = (key) => {
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      // Handle old format { list: [...] } and ensure it's always an array
+      if (Array.isArray(data)) return data;
+      if (data?.list && Array.isArray(data.list)) return data.list;
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
   const loadAll = () => {
     setData({
-      projects: JSON.parse(localStorage.getItem("projects"))?.list || [],
-      leads: JSON.parse(localStorage.getItem("leads"))?.list || [],
-      estimates: JSON.parse(localStorage.getItem("estimates"))?.list || [],
-      invoices: JSON.parse(localStorage.getItem("invoices"))?.list || [],
-      payments: JSON.parse(localStorage.getItem("payments"))?.list || [],
-      expenses: JSON.parse(localStorage.getItem("expenses"))?.list || [],
-      documentsMeta:
-        JSON.parse(localStorage.getItem("documents_meta"))?.list || [],
-      inventoryMaterials:
-        JSON.parse(localStorage.getItem("inventory_materials"))?.list || [],
-      suppliers: JSON.parse(localStorage.getItem("suppliers"))?.list || [],
-      purchaseOrders:
-        JSON.parse(localStorage.getItem("purchase_orders"))?.list || [],
-      tasks: JSON.parse(localStorage.getItem("tasks"))?.list || [],
-      employees: JSON.parse(localStorage.getItem("employees"))?.list || [],
+      projects: safeParse("projects"),
+      leads: safeParse("leads"),
+      estimates: safeParse("estimates"),
+      invoices: safeParse("invoices"),
+      payments: safeParse("payments"),
+      expenses: safeParse("expenses"),
+      documentsMeta: safeParse("documents_meta"),
+      inventoryMaterials: safeParse("inventory_materials"),
+      suppliers: safeParse("suppliers"),
+      purchaseOrders: safeParse("purchase_orders"),
+      tasks: safeParse("tasks"),
+      employees: safeParse("employees"),
     });
   };
 
@@ -665,7 +675,8 @@ const Dashboard = () => {
             <span className="font-semibold">{safeRole}</span>
             {isWorker && (
               <span className="ml-2 text-xs">
-                (Employee matched: {computed.kpis.myEmployeeMatched ? "Yes" : "No"})
+                (Employee matched:{" "}
+                {computed.kpis.myEmployeeMatched ? "Yes" : "No"})
               </span>
             )}
           </p>
@@ -673,7 +684,7 @@ const Dashboard = () => {
 
         <button
           onClick={loadAll}
-          className="bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 transition"
+          className="bg-gray-200 px-4 py-2 rounded-xl dark:bg-gray-700  hover:bg-gray-600 transition"
           title="Refresh dashboard"
         >
           Refresh
@@ -697,11 +708,17 @@ const Dashboard = () => {
       {!isWorker && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
           {showFinance && (
-            <SoftCard title="Outstanding (AR)" value={money(computed.kpis.outstanding)} />
+            <SoftCard
+              title="Outstanding (AR)"
+              value={money(computed.kpis.outstanding)}
+            />
           )}
 
           {showSecondaryActiveProjects && (
-            <SoftCard title="Active Projects" value={String(computed.kpis.activeProjects)} />
+            <SoftCard
+              title="Active Projects"
+              value={String(computed.kpis.activeProjects)}
+            />
           )}
 
           {showPipeline && (
@@ -712,14 +729,25 @@ const Dashboard = () => {
             />
           )}
 
-          {showDocsCard && <SoftCard title="Documents" value={String(computed.kpis.docsCount)} />}
-
-          {showInventory && (
-            <SoftCard title="Low Stock Items" value={String(computed.kpis.lowStockCount)} />
+          {showDocsCard && (
+            <SoftCard
+              title="Documents"
+              value={String(computed.kpis.docsCount)}
+            />
           )}
 
           {showInventory && (
-            <SoftCard title="Open Purchase Orders" value={String(computed.kpis.openPOCount)} />
+            <SoftCard
+              title="Low Stock Items"
+              value={String(computed.kpis.lowStockCount)}
+            />
+          )}
+
+          {showInventory && (
+            <SoftCard
+              title="Open Purchase Orders"
+              value={String(computed.kpis.openPOCount)}
+            />
           )}
         </div>
       )}
@@ -732,13 +760,17 @@ const Dashboard = () => {
               Activity
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
-              Recent actions derived from your data (will come from backend later).
+              Recent actions derived from your data (will come from backend
+              later).
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm">
-              Total: <span className="font-semibold">{computed.kpis.activityTotal}</span>
+              Total:{" "}
+              <span className="font-semibold">
+                {computed.kpis.activityTotal}
+              </span>
             </div>
 
             {isAdmin && (
@@ -769,7 +801,9 @@ const Dashboard = () => {
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs ${badgeClassByModule(a.module)}`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${badgeClassByModule(a.module)}`}
+                    >
                       {a.module}
                     </span>
                     <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -855,8 +889,18 @@ const Dashboard = () => {
                 <XAxis dataKey="month" />
                 <Tooltip formatter={(v) => money(v)} />
                 <Legend />
-                <Bar dataKey="cash" name="Cash In" fill="#22c55e" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="expense" name="Expenses" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="cash"
+                  name="Cash In"
+                  fill="#22c55e"
+                  radius={[6, 6, 0, 0]}
+                />
+                <Bar
+                  dataKey="expense"
+                  name="Expenses"
+                  fill="#ef4444"
+                  radius={[6, 6, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -902,7 +946,11 @@ const Dashboard = () => {
           </h2>
 
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={isWorker ? computed.myTaskStatusData : computed.taskStatusData}>
+            <BarChart
+              data={
+                isWorker ? computed.myTaskStatusData : computed.taskStatusData
+              }
+            >
               <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
               <XAxis dataKey="name" />
               <Tooltip />
@@ -951,7 +999,9 @@ const Dashboard = () => {
 
               <div className="max-h-[55vh] overflow-auto divide-y divide-gray-100 dark:divide-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl">
                 {activityFiltered.length === 0 ? (
-                  <div className="p-6 text-sm text-gray-500">No activity found.</div>
+                  <div className="p-6 text-sm text-gray-500">
+                    No activity found.
+                  </div>
                 ) : (
                   activityFiltered.map((a) => (
                     <button
@@ -968,7 +1018,9 @@ const Dashboard = () => {
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs ${badgeClassByModule(a.module)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${badgeClassByModule(a.module)}`}
+                            >
                               {a.module}
                             </span>
                             <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -990,7 +1042,8 @@ const Dashboard = () => {
               </div>
 
               <p className="text-xs text-gray-500">
-                Note: This feed is derived from local data for now. Backend audit logs will replace it later.
+                Note: This feed is derived from local data for now. Backend
+                audit logs will replace it later.
               </p>
             </div>
           </div>

@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import InvoiceModal from "../../components/finance/InvoiceModal";
 import { invoicesMock } from "../../data/financeMockData";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const calcTotal = (items = [], taxRate = 0) => {
   const subtotal = items.reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * Number(taxRate || 0);
 };
@@ -28,13 +29,11 @@ const Invoices = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [projects] = useState(
-    () => JSON.parse(localStorage.getItem("projects")) || []
-  );
+  const [projects] = useState(() => safeParse("projects"));
 
   const [invoices, setInvoices] = useState(() => {
-    const stored = JSON.parse(localStorage.getItem("invoices")) || null;
-    return stored ?? invoicesMock;
+    const stored = safeParse("invoices");
+    return stored.length > 0 ? stored : invoicesMock;
   });
 
   useEffect(() => {
@@ -49,9 +48,12 @@ const Invoices = () => {
   const metrics = useMemo(() => {
     const totalInvoiced = invoices.reduce(
       (s, inv) => s + calcTotal(inv.items, inv.taxRate),
-      0
+      0,
     );
-    const paid = invoices.reduce((s, inv) => s + Number(inv.amountPaid || 0), 0);
+    const paid = invoices.reduce(
+      (s, inv) => s + Number(inv.amountPaid || 0),
+      0,
+    );
     const outstanding = totalInvoiced - paid;
     const countPaid = invoices.filter((i) => i.status === "Paid").length;
     return { totalInvoiced, paid, outstanding, countPaid };
@@ -59,7 +61,7 @@ const Invoices = () => {
 
   const addInvoice = (payload) => {
     const project = projects.find(
-      (p) => Number(p.id) === Number(payload.projectId)
+      (p) => Number(p.id) === Number(payload.projectId),
     );
 
     const invoiceToSave = {

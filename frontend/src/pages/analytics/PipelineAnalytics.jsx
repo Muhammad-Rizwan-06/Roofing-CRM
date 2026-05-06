@@ -10,6 +10,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -36,12 +37,19 @@ const PROB = {
   Lost: 0,
 };
 
-const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"];
+const COLORS = [
+  "#6366f1",
+  "#22c55e",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#14b8a6",
+];
 
 const PipelineAnalytics = () => {
-  const leads = useMemo(() => JSON.parse(localStorage.getItem("leads")) || [], []);
-  const estimates = useMemo(() => JSON.parse(localStorage.getItem("estimates")) || [], []);
-  const projects = useMemo(() => JSON.parse(localStorage.getItem("projects")) || [], []);
+  const leads = useMemo(() => safeParse("leads"), []);
+  const estimates = useMemo(() => safeParse("estimates"), []);
+  const projects = useMemo(() => safeParse("projects"), []);
 
   const data = useMemo(() => {
     const stageCounts = {};
@@ -58,10 +66,19 @@ const PipelineAnalytics = () => {
       stageValue[s] += Number(l.estimatedValue || 0);
     });
 
-    const stageCountData = STAGES.map((s) => ({ name: s, value: stageCounts[s] }));
-    const stageValueData = STAGES.map((s) => ({ name: s, value: stageValue[s] }));
+    const stageCountData = STAGES.map((s) => ({
+      name: s,
+      value: stageCounts[s],
+    }));
+    const stageValueData = STAGES.map((s) => ({
+      name: s,
+      value: stageValue[s],
+    }));
 
-    const pipelineValue = leads.reduce((sum, l) => sum + Number(l.estimatedValue || 0), 0);
+    const pipelineValue = leads.reduce(
+      (sum, l) => sum + Number(l.estimatedValue || 0),
+      0,
+    );
     const weightedForecast = leads.reduce((sum, l) => {
       const p = PROB[l.status] ?? 0;
       return sum + Number(l.estimatedValue || 0) * p;
@@ -72,14 +89,21 @@ const PipelineAnalytics = () => {
       acc[s] = (acc[s] || 0) + 1;
       return acc;
     }, {});
-    const estimateStatusData = Object.entries(estimateStatusCounts).map(([name, value]) => ({ name, value }));
+    const estimateStatusData = Object.entries(estimateStatusCounts).map(
+      ([name, value]) => ({ name, value }),
+    );
 
     // conversion count (since converted leads are removed, we use projects with leadId / estimateId)
-    const convertedProjects = projects.filter((p) => p.leadId || p.estimateId).length;
+    const convertedProjects = projects.filter(
+      (p) => p.leadId || p.estimateId,
+    ).length;
 
     // funnel approximations
-    const totalLeadsEver = leads.length + projects.filter((p) => p.leadId).length;
-    const acceptedEstimates = estimates.filter((e) => e.status === "Accepted").length;
+    const totalLeadsEver =
+      leads.length + projects.filter((p) => p.leadId).length;
+    const acceptedEstimates = estimates.filter(
+      (e) => e.status === "Accepted",
+    ).length;
 
     return {
       stageCountData,
@@ -99,7 +123,9 @@ const PipelineAnalytics = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Pipeline Analytics</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+          Pipeline Analytics
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-300">
           Stage distribution, pipeline value and estimate outcomes (real data)
         </p>
@@ -109,33 +135,50 @@ const PipelineAnalytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Leads in Pipeline</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{data.kpis.leadsInPipeline}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {data.kpis.leadsInPipeline}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Pipeline Value</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{money(data.kpis.pipelineValue)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {money(data.kpis.pipelineValue)}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Weighted Forecast</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{money(data.kpis.weightedForecast)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {money(data.kpis.weightedForecast)}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Converted Projects</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{data.kpis.convertedProjects}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {data.kpis.convertedProjects}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Accepted Estimates</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{data.kpis.acceptedEstimates}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {data.kpis.acceptedEstimates}
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Stage distribution */}
         <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur rounded-2xl p-6 shadow-lg">
-          <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">Leads by Stage</h2>
+          <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">
+            Leads by Stage
+          </h2>
           <ResponsiveContainer width="100%" height={320}>
             <PieChart>
-              <Pie data={data.stageCountData} dataKey="value" nameKey="name" outerRadius={115}>
+              <Pie
+                data={data.stageCountData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={115}
+              >
                 {data.stageCountData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
@@ -147,13 +190,20 @@ const PipelineAnalytics = () => {
 
         {/* Stage value */}
         <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur rounded-2xl p-6 shadow-lg">
-          <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">Pipeline Value by Stage</h2>
+          <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">
+            Pipeline Value by Stage
+          </h2>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={data.stageValueData}>
               <XAxis dataKey="name" hide />
               <Tooltip formatter={(v) => money(v)} />
               <Legend />
-              <Bar dataKey="value" name="Value" fill="#6366f1" radius={[6, 6, 0, 0]} />
+              <Bar
+                dataKey="value"
+                name="Value"
+                fill="#6366f1"
+                radius={[6, 6, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
           <p className="text-xs text-gray-500 dark:text-gray-300 mt-2">
@@ -163,9 +213,13 @@ const PipelineAnalytics = () => {
       </div>
 
       <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur rounded-2xl p-6 shadow-lg">
-        <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">Estimates Outcomes</h2>
+        <h2 className="font-semibold mb-4 text-gray-700 dark:text-gray-200">
+          Estimates Outcomes
+        </h2>
         {data.estimateStatusData.length === 0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-300">No estimates found.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-300">
+            No estimates found.
+          </p>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.estimateStatusData}>

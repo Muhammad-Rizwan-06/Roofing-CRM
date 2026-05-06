@@ -4,14 +4,19 @@ import { ROLE } from "../config/accessControl";
 
 const getLocalData = (key) => {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+    const data = JSON.parse(localStorage.getItem(key));
+    if (Array.isArray(data)) return data;
+    if (data?.list && Array.isArray(data.list)) return data.list;
+    return [];
   } catch {
     return [];
   }
 };
 
-const normalize = (v) => String(v || "").trim().toLowerCase();
+const normalize = (v) =>
+  String(v || "")
+    .trim()
+    .toLowerCase();
 
 const Tasks = () => {
   const { user } = useAuth();
@@ -65,7 +70,9 @@ const Tasks = () => {
     const myName = normalize(user?.name);
 
     return (
-      (employees || []).find((e) => normalize(e.email) && normalize(e.email) === myEmail) ||
+      (employees || []).find(
+        (e) => normalize(e.email) && normalize(e.email) === myEmail,
+      ) ||
       (employees || []).find((e) => normalize(e.name) === myName) ||
       null
     );
@@ -79,7 +86,11 @@ const Tasks = () => {
     const taskWorkerName = normalize(t.worker);
 
     // Preferred match: employeeId
-    if (myEmployeeId != null && taskEmpId != null && String(taskEmpId) === String(myEmployeeId)) {
+    if (
+      myEmployeeId != null &&
+      taskEmpId != null &&
+      String(taskEmpId) === String(myEmployeeId)
+    ) {
       return true;
     }
 
@@ -99,7 +110,9 @@ const Tasks = () => {
       return;
     }
 
-    const selectedEmployee = employees.find((e) => String(e.id) === String(form.employeeId));
+    const selectedEmployee = employees.find(
+      (e) => String(e.id) === String(form.employeeId),
+    );
     const workerName = selectedEmployee?.name || form.worker || "";
 
     const newTask = {
@@ -168,7 +181,8 @@ const Tasks = () => {
 
         {isWorker && (
           <div className="text-xs text-gray-500">
-            Employee linked: <span className="font-semibold">{myEmployee ? "Yes" : "No"}</span>
+            Employee linked:{" "}
+            <span className="font-semibold">{myEmployee ? "Yes" : "No"}</span>
           </div>
         )}
       </div>
@@ -178,7 +192,9 @@ const Tasks = () => {
         <button
           onClick={() => setView("table")}
           className={`px-4 py-2 rounded ${
-            view === "table" ? "bg-blue-600 text-white" : "bg-gray-200"
+            view === "table"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 text-black"
           }`}
         >
           Table View
@@ -187,7 +203,9 @@ const Tasks = () => {
         <button
           onClick={() => setView("kanban")}
           className={`px-4 py-2 rounded ${
-            view === "kanban" ? "bg-blue-600 text-white" : "bg-gray-200"
+            view === "kanban"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 text-black"
           }`}
         >
           Kanban Board
@@ -196,7 +214,7 @@ const Tasks = () => {
 
       {/* FORM (Admin/PM only) */}
       {canManageTasks && (
-        <div className="bg-white p-5 rounded-2xl shadow space-y-4">
+        <div className="bg-white p-5 dark:bg-gray-900 rounded-2xl shadow space-y-4">
           <input
             placeholder="Task Title"
             className="border p-3 w-full rounded"
@@ -205,7 +223,7 @@ const Tasks = () => {
           />
 
           <select
-            className="border p-3 w-full rounded"
+            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
             value={form.projectId}
             onChange={(e) => setForm({ ...form, projectId: e.target.value })}
           >
@@ -257,7 +275,7 @@ const Tasks = () => {
           </div>
 
           <select
-            className="border p-3 w-full rounded"
+            className="border dark:bg-gray-900 text-white p-3 w-full rounded"
             value={form.priority}
             onChange={(e) => setForm({ ...form, priority: e.target.value })}
           >
@@ -267,7 +285,7 @@ const Tasks = () => {
           </select>
 
           <select
-            className="border p-3 w-full rounded"
+            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value })}
           >
@@ -289,7 +307,7 @@ const Tasks = () => {
       {view === "table" && (
         <div className="bg-white rounded-2xl shadow overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-100 text-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-200">
               <tr>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Project</th>
@@ -297,13 +315,18 @@ const Tasks = () => {
                 <th className="px-4 py-3">Dates</th>
                 <th className="px-4 py-3">Priority</th>
                 <th className="px-4 py-3">Status</th>
-                {canManageTasks && <th className="px-4 py-3 text-center">Actions</th>}
+                {canManageTasks && (
+                  <th className="px-4 py-3 text-center">Actions</th>
+                )}
               </tr>
             </thead>
 
             <tbody>
               {visibleTasks.map((t) => (
-                <tr key={t.id} className="border-t hover:bg-gray-50">
+                <tr
+                  key={t.id}
+                  className="border-t dark:bg-gray-900  hover:bg-gray-800"
+                >
                   <td className="px-4 py-3">{t.title}</td>
                   <td className="px-4 py-3">{getProjectName(t.projectId)}</td>
                   <td className="px-4 py-3">{t.worker || "—"}</td>
@@ -357,23 +380,31 @@ const Tasks = () => {
       {view === "kanban" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {statuses.map((status) => (
-            <div key={status} className="bg-gray-100 p-4 rounded-xl">
+            <div
+              key={status}
+              className="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl"
+            >
               <h2 className="font-semibold mb-4">{status}</h2>
 
               <div className="space-y-3">
                 {visibleTasks
                   .filter((t) => t.status === status)
                   .map((t) => (
-                    <div key={t.id} className="bg-white p-3 rounded-lg shadow">
+                    <div
+                      key={t.id}
+                      className="bg-white dark:bg-gray-900  p-3 rounded-lg shadow"
+                    >
                       <p className="font-semibold">{t.title}</p>
-                      <p className="text-sm text-gray-500">{getProjectName(t.projectId)}</p>
+                      <p className="text-sm text-gray-500">
+                        {getProjectName(t.projectId)}
+                      </p>
                       <p className="text-sm">{t.worker || "—"}</p>
                       <p className="text-xs mt-1">Priority: {t.priority}</p>
 
                       <select
                         value={t.status}
                         onChange={(e) => changeStatus(t.id, e.target.value)}
-                        className="mt-2 w-full border rounded px-2 py-1"
+                        className="mt-2 w-full border rounded px-2 py-1 dark:bg-gray-900 text-white"
                         disabled={!canUpdateStatus}
                       >
                         <option>Pending</option>

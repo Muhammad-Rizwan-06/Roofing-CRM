@@ -50,7 +50,7 @@ const Navbar = () => {
     <header className="sticky top-0 z-40">
       <div className="flex items-center justify-between gap-4 bg-white/90 dark:bg-gray-900/80 backdrop-blur px-6 py-4 border-b border-gray-200 dark:border-gray-800">
         {/* Left title */}
-        <div className="min-w-[220px]">
+        <div className="min-w-55">
           <p className="text-xs text-gray-500 dark:text-gray-400">Roofing CRM</p>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 leading-tight">
             {pageTitle}

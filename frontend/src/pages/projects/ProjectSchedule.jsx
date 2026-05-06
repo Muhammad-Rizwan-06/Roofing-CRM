@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+// Safe localStorage parser that handles both old and new data formats
 const lsGet = (key, fallback = []) => {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    const data = JSON.parse(localStorage.getItem(key));
+    if (Array.isArray(data)) return data;
+    if (data?.list && Array.isArray(data.list)) return data.list;
+    return fallback;
   } catch {
     return fallback;
   }
@@ -64,7 +67,7 @@ const ProjectSchedule = () => {
             endDate: form.endDate || "",
             updatedAt: new Date().toISOString(),
           }
-        : p
+        : p,
     );
 
     setProjects(updated);
@@ -74,7 +77,7 @@ const ProjectSchedule = () => {
 
   const scheduledCount = useMemo(
     () => projects.filter((p) => p.startDate || p.endDate).length,
-    [projects]
+    [projects],
   );
 
   return (
@@ -90,8 +93,12 @@ const ProjectSchedule = () => {
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Scheduled Projects</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{scheduledCount}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Scheduled Projects
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {scheduledCount}
+          </p>
         </div>
       </div>
 
@@ -116,18 +123,28 @@ const ProjectSchedule = () => {
           <tbody>
             {projects.map((p) => {
               const duration =
-                p.startDate && p.endDate ? daysBetween(p.startDate, p.endDate) : null;
+                p.startDate && p.endDate
+                  ? daysBetween(p.startDate, p.endDate)
+                  : null;
 
               const isEditing = editingId === p.id;
 
               return (
-                <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800">
+                <tr
+                  key={p.id}
+                  className="border-t border-gray-100 dark:border-gray-800"
+                >
                   <td className="px-4 py-3 font-medium">
-                    <Link className="text-blue-600 hover:underline" to={`/projects/${p.id}`}>
+                    <Link
+                      className="text-blue-600 hover:underline"
+                      to={`/projects/${p.id}`}
+                    >
                       {p.name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{p.client}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                    {p.client}
+                  </td>
 
                   <td className="px-4 py-3">
                     {isEditing ? (
@@ -135,10 +152,14 @@ const ProjectSchedule = () => {
                         type="date"
                         className="border rounded-lg px-2 py-1 bg-white dark:bg-gray-950 dark:text-white"
                         value={form.startDate}
-                        onChange={(e) => setForm((x) => ({ ...x, startDate: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((x) => ({ ...x, startDate: e.target.value }))
+                        }
                       />
                     ) : (
-                      <span className="text-gray-600 dark:text-gray-300">{p.startDate || "—"}</span>
+                      <span className="text-gray-600 dark:text-gray-300">
+                        {p.startDate || "—"}
+                      </span>
                     )}
                   </td>
 
@@ -148,10 +169,14 @@ const ProjectSchedule = () => {
                         type="date"
                         className="border rounded-lg px-2 py-1 bg-white dark:bg-gray-950 dark:text-white"
                         value={form.endDate}
-                        onChange={(e) => setForm((x) => ({ ...x, endDate: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((x) => ({ ...x, endDate: e.target.value }))
+                        }
                       />
                     ) : (
-                      <span className="text-gray-600 dark:text-gray-300">{p.endDate || "—"}</span>
+                      <span className="text-gray-600 dark:text-gray-300">
+                        {p.endDate || "—"}
+                      </span>
                     )}
                   </td>
 
@@ -166,15 +191,24 @@ const ProjectSchedule = () => {
                   <td className="px-4 py-3 text-right space-x-3">
                     {isEditing ? (
                       <>
-                        <button className="text-green-600 hover:underline" onClick={saveSchedule}>
+                        <button
+                          className="text-green-600 hover:underline"
+                          onClick={saveSchedule}
+                        >
                           Save
                         </button>
-                        <button className="text-gray-600 hover:underline" onClick={cancelEdit}>
+                        <button
+                          className="text-gray-600 hover:underline"
+                          onClick={cancelEdit}
+                        >
                           Cancel
                         </button>
                       </>
                     ) : (
-                      <button className="text-blue-600 hover:underline" onClick={() => startEdit(p)}>
+                      <button
+                        className="text-blue-600 hover:underline"
+                        onClick={() => startEdit(p)}
+                      >
                         Edit
                       </button>
                     )}
@@ -185,7 +219,10 @@ const ProjectSchedule = () => {
 
             {projects.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={7}
+                  className="px-4 py-8 text-center text-gray-500 dark:text-gray-300"
+                >
                   No projects found.
                 </td>
               </tr>

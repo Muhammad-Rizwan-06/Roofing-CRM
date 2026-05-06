@@ -216,10 +216,6 @@ const CompanySettings = () => {
             />
           </div>
         </div>
-
-        {/* <p className="text-xs text-gray-500 dark:text-gray-400">
-          Note: In backend phase, these settings will be saved per organization and applied automatically.
-        </p> */}
       </div>
     </div>
   );

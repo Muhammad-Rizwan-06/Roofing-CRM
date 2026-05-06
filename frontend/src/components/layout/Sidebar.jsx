@@ -25,23 +25,59 @@ const Sidebar = () => {
   // ✅ Customer Portal sidebar
   if (roleName === ROLE.CUSTOMER) {
     return (
-      <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col">
-        <h2 className="text-2xl font-bold text-blue-600 mb-8">Customer Portal</h2>
+      <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col fixed top-0 left-0">
+        <h2 className="text-2xl font-bold text-blue-600 mb-8">
+          Customer Portal
+        </h2>
 
-        <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
-          <NavLink to="/portal" className={({ isActive }) => linkClass(isActive)}>
+        <nav
+          className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-transparent hover:scrollbar-thumb-blue-600"
+        >
+          {/* Webkit browsers (Chrome, Safari, Edge) */}
+          <style>{`
+            nav::-webkit-scrollbar {
+              width: 4px;
+            }
+            nav::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            nav::-webkit-scrollbar-thumb {
+              background-color: #3b82f6;
+              border-radius: 999px;
+            }
+            nav::-webkit-scrollbar-thumb:hover {
+              background-color: #2563eb;
+            }
+          `}</style>
+
+          <NavLink
+            to="/portal"
+            className={({ isActive }) => linkClass(isActive)}
+          >
             Dashboard
           </NavLink>
-          <NavLink to="/portal/projects" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink
+            to="/portal/projects"
+            className={({ isActive }) => linkClass(isActive)}
+          >
             My Projects
           </NavLink>
-          <NavLink to="/portal/documents/contracts" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink
+            to="/portal/documents/contracts"
+            className={({ isActive }) => linkClass(isActive)}
+          >
             Contracts
           </NavLink>
-          <NavLink to="/portal/finance/invoices" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink
+            to="/portal/finance/invoices"
+            className={({ isActive }) => linkClass(isActive)}
+          >
             Invoices
           </NavLink>
-          <NavLink to="/portal/finance/payments" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink
+            to="/portal/finance/payments"
+            className={({ isActive }) => linkClass(isActive)}
+          >
             Payments
           </NavLink>
         </nav>

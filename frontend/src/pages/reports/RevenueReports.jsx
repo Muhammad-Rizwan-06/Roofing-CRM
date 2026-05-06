@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -31,7 +32,7 @@ const monthLabel = (key) => {
 const calcInvoiceTotal = (inv) => {
   const subtotal = (inv.items || []).reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * Number(inv.taxRate || 0);
 };
@@ -42,15 +43,15 @@ const RevenueReports = () => {
 
   const payments = useMemo(
     () => JSON.parse(localStorage.getItem("payments")) || [],
-    []
+    [],
   );
   const invoices = useMemo(
     () => JSON.parse(localStorage.getItem("invoices")) || [],
-    []
+    [],
   );
   const expenses = useMemo(
     () => JSON.parse(localStorage.getItem("expenses")) || [],
-    []
+    [],
   );
 
   const { kpis, chartData } = useMemo(() => {
@@ -90,10 +91,13 @@ const RevenueReports = () => {
     const totalExpenses = months.reduce((s, m) => s + m.expense, 0);
     const net = totalRevenue - totalExpenses;
 
-    const totalInvoiced = invoices.reduce((s, inv) => s + calcInvoiceTotal(inv), 0);
+    const totalInvoiced = invoices.reduce(
+      (s, inv) => s + calcInvoiceTotal(inv),
+      0,
+    );
     const totalPaidAgainstInvoices = invoices.reduce(
       (s, inv) => s + Number(inv.amountPaid || 0),
-      0
+      0,
     );
     const outstanding = Math.max(0, totalInvoiced - totalPaidAgainstInvoices);
 
@@ -174,8 +178,18 @@ const RevenueReports = () => {
             <XAxis dataKey="month" />
             <Tooltip />
             <Legend />
-            <Bar dataKey="revenue" fill="#22c55e" name="Revenue" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="expense" fill="#ef4444" name="Expenses" radius={[6, 6, 0, 0]} />
+            <Bar
+              dataKey="revenue"
+              fill="#22c55e"
+              name="Revenue"
+              radius={[6, 6, 0, 0]}
+            />
+            <Bar
+              dataKey="expense"
+              fill="#ef4444"
+              name="Expenses"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

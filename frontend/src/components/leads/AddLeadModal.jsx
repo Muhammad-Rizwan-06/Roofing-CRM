@@ -45,8 +45,8 @@ const AddLeadModal = ({ setOpen, onAdd }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center">
-      <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-lg space-y-4">
-        <h2 className="text-xl font-bold text-gray-800">Add New Lead</h2>
+      <div className="bg-white dark:bg-gray-900 w-full max-w-md p-6 rounded-2xl shadow-lg space-y-4">
+        <h2 className="text-xl font-bold dark:text-white text-gray-800">Add New Lead</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <InputField

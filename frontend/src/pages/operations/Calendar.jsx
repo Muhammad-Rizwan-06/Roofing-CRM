@@ -55,7 +55,9 @@ const Calendar = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Calendar</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+          Calendar
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-300">
           Task calendar view based on task Start Date
         </p>
@@ -82,7 +84,7 @@ const Calendar = () => {
         </div>
 
         <button
-          className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-xl"
+          className="bg-gray-200 dark:bg-gray-900 text-gray-500 dark:text-gray-300 hover:bg-gray-700 px-4 py-2 rounded-xl"
           onClick={() => {
             setFrom("");
             setTo("");
@@ -100,25 +102,37 @@ const Calendar = () => {
           </div>
         ) : (
           dates.map((date) => (
-            <div key={date} className="bg-white dark:bg-gray-900 rounded-2xl shadow border border-gray-100 dark:border-gray-800">
+            <div
+              key={date}
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow border border-gray-100 dark:border-gray-800"
+            >
               <div className="p-4 border-b border-gray-100 dark:border-gray-800 font-semibold text-gray-800 dark:text-white">
                 {date}
               </div>
 
               <div className="p-4 space-y-3">
                 {grouped[date].map((t) => (
-                  <div key={t.id} className="p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <div
+                    key={t.id}
+                    className="p-3 rounded-xl border border-gray-100 dark:border-gray-800"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-gray-800 dark:text-white">{t.title}</p>
+                        <p className="font-semibold text-gray-800 dark:text-white">
+                          {t.title}
+                        </p>
                         <p className="text-sm text-gray-500 dark:text-gray-300">
                           Project:{" "}
-                          <Link className="text-blue-600 hover:underline" to={`/projects/${t.projectId}`}>
+                          <Link
+                            className="text-blue-600 hover:underline"
+                            to={`/projects/${t.projectId}`}
+                          >
                             {projectName(t.projectId)}
                           </Link>
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-300">
-                          Worker: {t.worker || "—"} • Priority: {t.priority} • Status: {t.status}
+                          Worker: {t.worker || "—"} • Priority: {t.priority} •
+                          Status: {t.status}
                         </p>
                       </div>
 

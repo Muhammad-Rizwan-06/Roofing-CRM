@@ -4,8 +4,20 @@ import CustomersTable from "../components/customers/CustomersTable";
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
 
+  // Helper to safely parse localStorage and ensure it's always an array
+  const safeParse = (key) => {
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (Array.isArray(data)) return data;
+      if (data?.list && Array.isArray(data.list)) return data.list;
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
   const loadCustomers = () => {
-    const projects = JSON.parse(localStorage.getItem("projects")) || [];
+    const projects = safeParse("projects");
 
     const map = new Map();
 
@@ -39,7 +51,7 @@ const Customers = () => {
 
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-2xl font-bold text-gray-800">Customers</h1>
+      <h1 className="text-2xl font-bold dark:text-white text-gray-800">Customers</h1>
       <CustomersTable customers={customers} />
     </div>
   );

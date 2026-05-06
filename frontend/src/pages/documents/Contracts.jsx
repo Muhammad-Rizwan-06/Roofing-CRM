@@ -221,7 +221,9 @@ const Contracts = () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Contracts</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Contracts
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Project-linked contracts (PDF/DOC) + digital signatures
           </p>
@@ -264,7 +266,10 @@ const Contracts = () => {
               const signed = Boolean(d.signed);
 
               return (
-                <tr key={d.id} className="border-t border-gray-100 dark:border-gray-800">
+                <tr
+                  key={d.id}
+                  className="border-t border-gray-100 dark:border-gray-800"
+                >
                   <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
                     {d.fileName}
                   </td>
@@ -286,7 +291,9 @@ const Contracts = () => {
                           Signed
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-300">
-                          {d.signedAt ? new Date(d.signedAt).toLocaleString() : ""}
+                          {d.signedAt
+                            ? new Date(d.signedAt).toLocaleString()
+                            : ""}
                         </span>
                       </div>
                     ) : (
@@ -297,10 +304,14 @@ const Contracts = () => {
                   </td>
 
                   <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : "—"}
+                    {d.uploadedAt
+                      ? new Date(d.uploadedAt).toLocaleString()
+                      : "—"}
                   </td>
 
-                  <td className="p-3 text-gray-600 dark:text-gray-300">{d.notes || "—"}</td>
+                  <td className="p-3 text-gray-600 dark:text-gray-300">
+                    {d.notes || "—"}
+                  </td>
 
                   <td className="p-3 text-right space-x-3">
                     <button
@@ -324,7 +335,9 @@ const Contracts = () => {
                         type="button"
                         className="text-emerald-700 hover:underline"
                         onClick={() => openSignModal(d)}
-                        title={signed ? "View signature details" : "Sign contract"}
+                        title={
+                          signed ? "View signature details" : "Sign contract"
+                        }
                       >
                         {signed ? "View Signature" : "Sign"}
                       </button>
@@ -346,7 +359,10 @@ const Contracts = () => {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={6}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No contracts uploaded.
                 </td>
               </tr>
@@ -375,7 +391,9 @@ const Contracts = () => {
             <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                  {activeDoc.signed ? "Signature (Signed Contract)" : "Sign Contract"}
+                  {activeDoc.signed
+                    ? "Signature (Signed Contract)"
+                    : "Sign Contract"}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
                   {activeDoc.fileName} • {activeDoc.projectName}
@@ -385,7 +403,7 @@ const Contracts = () => {
               <button
                 type="button"
                 onClick={closeSignModal}
-                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 text-sm"
+                className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600 text-sm"
               >
                 Close
               </button>
@@ -397,7 +415,9 @@ const Contracts = () => {
                   <div className="text-sm text-gray-700 dark:text-gray-200">
                     <div>
                       <span className="font-semibold">Signed at:</span>{" "}
-                      {activeDoc.signedAt ? new Date(activeDoc.signedAt).toLocaleString() : "—"}
+                      {activeDoc.signedAt
+                        ? new Date(activeDoc.signedAt).toLocaleString()
+                        : "—"}
                     </div>
                     <div className="mt-1">
                       <span className="font-semibold">Signed by:</span>{" "}
@@ -417,14 +437,16 @@ const Contracts = () => {
                       />
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">Signature image not found.</p>
+                    <p className="text-sm text-gray-500">
+                      Signature image not found.
+                    </p>
                   )}
                 </div>
               ) : (
                 <>
                   <div
                     ref={sigWrapRef}
-                    className="w-full h-[220px] border rounded-2xl overflow-hidden bg-white"
+                    className="w-full h-55 border rounded-2xl overflow-hidden bg-white"
                   >
                     <SignatureCanvas
                       ref={sigRef}
@@ -441,7 +463,7 @@ const Contracts = () => {
                     <button
                       type="button"
                       onClick={clearSignature}
-                      className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
+                      className="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
                     >
                       Clear
                     </button>
@@ -450,7 +472,7 @@ const Contracts = () => {
                       <button
                         type="button"
                         onClick={closeSignModal}
-                        className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
+                        className="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
                       >
                         Cancel
                       </button>

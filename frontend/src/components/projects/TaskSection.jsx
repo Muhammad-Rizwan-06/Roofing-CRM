@@ -20,12 +20,9 @@ const TaskSection = ({ project, setProject }) => {
       task.id === taskId
         ? {
             ...task,
-            status:
-              task.status === "Pending"
-                ? "Completed"
-                : "Pending",
+            status: task.status === "Pending" ? "Completed" : "Pending",
           }
-        : task
+        : task,
     );
 
     updateProjectInStorage({
@@ -36,9 +33,7 @@ const TaskSection = ({ project, setProject }) => {
 
   // Delete Task
   const deleteTask = (taskId) => {
-    const updatedTasks = project.tasks.filter(
-      (t) => t.id !== taskId
-    );
+    const updatedTasks = project.tasks.filter((t) => t.id !== taskId);
 
     updateProjectInStorage({
       ...project,
@@ -48,24 +43,23 @@ const TaskSection = ({ project, setProject }) => {
 
   // Update localStorage + state
   const updateProjectInStorage = (updatedProject) => {
-    const projects =
-      JSON.parse(localStorage.getItem("projects")) || [];
+    let projects = JSON.parse(localStorage.getItem("projects")) || [];
+    // Handle old format with .list property
+    if (!Array.isArray(projects) && projects?.list) {
+      projects = projects.list;
+    }
 
     const updatedProjects = projects.map((p) =>
-      p.id === updatedProject.id ? updatedProject : p
+      p.id === updatedProject.id ? updatedProject : p,
     );
 
-    localStorage.setItem(
-      "projects",
-      JSON.stringify(updatedProjects)
-    );
+    localStorage.setItem("projects", JSON.stringify(updatedProjects));
 
     setProject(updatedProject);
   };
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow border">
-
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Tasks</h2>
@@ -122,12 +116,7 @@ const TaskSection = ({ project, setProject }) => {
       </div>
 
       {/* Modal */}
-      {open && (
-        <AddTaskModal
-          setOpen={setOpen}
-          onAdd={handleAddTask}
-        />
-      )}
+      {open && <AddTaskModal setOpen={setOpen} onAdd={handleAddTask} />}
     </div>
   );
 };

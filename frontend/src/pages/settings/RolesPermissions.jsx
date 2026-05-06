@@ -131,13 +131,17 @@ const RolesPermissions = () => {
 
         <div className="flex gap-2">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-            <p className="text-xs text-gray-500 dark:text-gray-300">Total Roles</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-300">
+              Total Roles
+            </p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">
+              {total}
+            </p>
           </div>
 
           <button
             onClick={resetDefaults}
-            className="bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 transition h-fit"
+            className="bg-gray-200 px-4 py-2 rounded-xl dark:bg-gray-700 dark:text-white hover:bg-gray-600 transition h-fit"
           >
             Reset Defaults
           </button>
@@ -148,7 +152,9 @@ const RolesPermissions = () => {
         onSubmit={addRole}
         className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow border border-gray-100 dark:border-gray-800 space-y-4"
       >
-        <h2 className="font-semibold text-gray-800 dark:text-white">Add Custom Role</h2>
+        <h2 className="font-semibold text-gray-800 dark:text-white">
+          Add Custom Role
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
@@ -161,13 +167,17 @@ const RolesPermissions = () => {
             className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
             placeholder="Description"
             value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, description: e.target.value }))
+            }
           />
           <input
             className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
             placeholder="Permissions (comma separated)"
             value={form.permissions}
-            onChange={(e) => setForm((p) => ({ ...p, permissions: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, permissions: e.target.value }))
+            }
           />
         </div>
 
@@ -176,12 +186,15 @@ const RolesPermissions = () => {
         </button>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Examples: <code>projects:read, projects:write</code> or <code>finance:*</code>
+          Examples: <code>projects:read, projects:write</code> or{" "}
+          <code>finance:*</code>
         </p>
       </form>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Roles List</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          Roles List
+        </div>
 
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-100 dark:bg-gray-950 text-gray-700 dark:text-gray-200">
@@ -194,14 +207,24 @@ const RolesPermissions = () => {
           </thead>
           <tbody>
             {roles.map((r) => (
-              <tr key={r.id} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="p-3 font-medium text-gray-800 dark:text-white">{r.name}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{r.description || "—"}</td>
+              <tr
+                key={r.id}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
+                <td className="p-3 font-medium text-gray-800 dark:text-white">
+                  {r.name}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {r.description || "—"}
+                </td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">
                   {(r.permissions || []).join(", ")}
                 </td>
                 <td className="p-3 text-right">
-                  <button className="text-red-600 hover:underline" onClick={() => remove(r.id)}>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => remove(r.id)}
+                  >
                     Delete
                   </button>
                 </td>
@@ -210,7 +233,10 @@ const RolesPermissions = () => {
 
             {roles.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={4}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No roles.
                 </td>
               </tr>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ExpenseModal from "../../components/finance/ExpenseModal";
 import { expensesMock } from "../../data/financeMockData";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -20,14 +21,17 @@ const Expenses = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [projects] = useState(() => JSON.parse(localStorage.getItem("projects")) || []);
+  const [projects] = useState(() => safeParse("projects"));
 
   const [expenses, setExpenses] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("expenses")) || null;
     return stored ?? expensesMock;
   });
 
-  useEffect(() => localStorage.setItem("expenses", JSON.stringify(expenses)), [expenses]);
+  useEffect(
+    () => localStorage.setItem("expenses", JSON.stringify(expenses)),
+    [expenses],
+  );
 
   // Auto-open when navigated from project context
   useEffect(() => {
@@ -36,17 +40,24 @@ const Expenses = () => {
 
   const filteredExpenses = useMemo(() => {
     if (!prefillProjectId) return expenses;
-    return expenses.filter((e) => String(e.projectId) === String(prefillProjectId));
+    return expenses.filter(
+      (e) => String(e.projectId) === String(prefillProjectId),
+    );
   }, [expenses, prefillProjectId]);
 
   const metrics = useMemo(() => {
-    const total = filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const total = filteredExpenses.reduce(
+      (s, e) => s + Number(e.amount || 0),
+      0,
+    );
     const count = filteredExpenses.length;
     return { total, count };
   }, [filteredExpenses]);
 
   const addExpense = (payload) => {
-    const project = projects.find((p) => Number(p.id) === Number(payload.projectId));
+    const project = projects.find(
+      (p) => Number(p.id) === Number(payload.projectId),
+    );
 
     setExpenses((prev) => [
       ...prev,
@@ -66,14 +77,19 @@ const Expenses = () => {
 
   const activeProjectName = useMemo(() => {
     if (!prefillProjectId) return "";
-    return projects.find((p) => String(p.id) === String(prefillProjectId))?.name || "";
+    return (
+      projects.find((p) => String(p.id) === String(prefillProjectId))?.name ||
+      ""
+    );
   }, [prefillProjectId, projects]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Expenses</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Expenses
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Track project expenses for accurate job costing
           </p>
@@ -81,7 +97,9 @@ const Expenses = () => {
           {prefillProjectId && (
             <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
               Showing expenses for:{" "}
-              <span className="font-semibold">{activeProjectName || `Project #${prefillProjectId}`}</span>{" "}
+              <span className="font-semibold">
+                {activeProjectName || `Project #${prefillProjectId}`}
+              </span>{" "}
               <button
                 className="ml-2 text-blue-600 hover:underline"
                 onClick={() => setSearchParams({})}
@@ -107,16 +125,22 @@ const Expenses = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total Expenses</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{money(metrics.total)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {money(metrics.total)}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Count</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{metrics.count}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {metrics.count}
+          </p>
         </div>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Expense List</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          Expense List
+        </div>
 
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
@@ -133,8 +157,13 @@ const Expenses = () => {
 
           <tbody>
             {filteredExpenses.map((e) => (
-              <tr key={e.id} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="p-3 font-medium text-gray-800 dark:text-gray-100">{e.expenseNo}</td>
+              <tr
+                key={e.id}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
+                <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
+                  {e.expenseNo}
+                </td>
                 <td className="p-3 text-gray-700 dark:text-gray-200">
                   {e.projectId ? (
                     <button
@@ -147,12 +176,23 @@ const Expenses = () => {
                     "—"
                   )}
                 </td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{e.category}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{e.vendor || "—"}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{e.date}</td>
-                <td className="p-3 text-gray-800 dark:text-gray-100">{money(e.amount)}</td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {e.category}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {e.vendor || "—"}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {e.date}
+                </td>
+                <td className="p-3 text-gray-800 dark:text-gray-100">
+                  {money(e.amount)}
+                </td>
                 <td className="p-3 text-right">
-                  <button onClick={() => remove(e.id)} className="text-red-600 hover:underline">
+                  <button
+                    onClick={() => remove(e.id)}
+                    className="text-red-600 hover:underline"
+                  >
                     Delete
                   </button>
                 </td>
@@ -161,7 +201,10 @@ const Expenses = () => {
 
             {filteredExpenses.length === 0 && (
               <tr>
-                <td className="p-6 text-center text-gray-500 dark:text-gray-300" colSpan={7}>
+                <td
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                  colSpan={7}
+                >
                   No expenses yet.
                 </td>
               </tr>

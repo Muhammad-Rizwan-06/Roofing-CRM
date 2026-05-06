@@ -1,6 +1,10 @@
 import React, { useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { getCustomerProjects, getCustomerProjectIdSet } from "../../utils/customerScope";
+import {
+  getCustomerProjects,
+  getCustomerProjectIdSet,
+} from "../../utils/customerScope";
+import { safeParse } from "../../utils/storageHelper";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -9,7 +13,7 @@ const calcInvoiceTotal = (inv) => {
   const taxRate = Number(inv?.taxRate || 0);
   const subtotal = items.reduce(
     (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0
+    0,
   );
   return subtotal + subtotal * taxRate;
 };
@@ -17,23 +21,37 @@ const calcInvoiceTotal = (inv) => {
 export default function PortalDashboard() {
   const { user } = useAuth();
 
-  const projects = useMemo(() => JSON.parse(localStorage.getItem("projects")) || [], []);
-  const invoices = useMemo(() => JSON.parse(localStorage.getItem("invoices")) || [], []);
+  const projects = useMemo(() => safeParse("projects"), []);
+  const invoices = useMemo(() => safeParse("invoices"), []);
 
-  const myProjects = useMemo(() => getCustomerProjects(projects, user), [projects, user]);
-  const myProjectIds = useMemo(() => getCustomerProjectIdSet(projects, user), [projects, user]);
+  const myProjects = useMemo(
+    () => getCustomerProjects(projects, user),
+    [projects, user],
+  );
+  const myProjectIds = useMemo(
+    () => getCustomerProjectIdSet(projects, user),
+    [projects, user],
+  );
 
   const myInvoices = useMemo(
     () => invoices.filter((inv) => myProjectIds.has(String(inv.projectId))),
-    [invoices, myProjectIds]
+    [invoices, myProjectIds],
   );
 
   const stats = useMemo(() => {
     const totalProjects = myProjects.length;
-    const activeProjects = myProjects.filter((p) => String(p.status) !== "Completed").length;
+    const activeProjects = myProjects.filter(
+      (p) => String(p.status) !== "Completed",
+    ).length;
 
-    const totalInvoiced = myInvoices.reduce((s, inv) => s + calcInvoiceTotal(inv), 0);
-    const paid = myInvoices.reduce((s, inv) => s + Number(inv.amountPaid || 0), 0);
+    const totalInvoiced = myInvoices.reduce(
+      (s, inv) => s + calcInvoiceTotal(inv),
+      0,
+    );
+    const paid = myInvoices.reduce(
+      (s, inv) => s + Number(inv.amountPaid || 0),
+      0,
+    );
     const outstanding = Math.max(0, totalInvoiced - paid);
 
     return { totalProjects, activeProjects, totalInvoiced, paid, outstanding };
@@ -42,7 +60,9 @@ export default function PortalDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">My Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+          My Dashboard
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-300">
           Welcome, {user?.name}
         </p>
@@ -55,7 +75,9 @@ export default function PortalDashboard() {
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {stats.totalProjects}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Active: {stats.activeProjects}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Active: {stats.activeProjects}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
@@ -63,7 +85,9 @@ export default function PortalDashboard() {
           <p className="text-xl font-bold text-gray-900 dark:text-white">
             {money(stats.paid)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Total invoiced: {money(stats.totalInvoiced)}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Total invoiced: {money(stats.totalInvoiced)}
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
@@ -91,12 +115,19 @@ export default function PortalDashboard() {
           </thead>
           <tbody>
             {myProjects.map((p) => (
-              <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800">
+              <tr
+                key={p.id}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
                   {p.name}
                 </td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{p.status || "—"}</td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{p.supervisor || "—"}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {p.status || "—"}
+                </td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {p.supervisor || "—"}
+                </td>
                 <td className="p-3 text-gray-800 dark:text-gray-100">
                   {money(p.budget)}
                 </td>
@@ -105,10 +136,15 @@ export default function PortalDashboard() {
 
             {myProjects.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={4}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No projects assigned to your account yet.
                   <div className="text-xs mt-2">
-                    (For Step 1, matching is by <b>project.client == your name</b> unless you later add clientEmail.)
+                    (For Step 1, matching is by{" "}
+                    <b>project.client == your name</b> unless you later add
+                    clientEmail.)
                   </div>
                 </td>
               </tr>
