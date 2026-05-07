@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthShell from "../../components/auth/AuthShell";
 import { generateSalt, hashPassword } from "../../utils/password";
 import { ROLE } from "../../config/accessControl";
+import { apiClient } from "../../utils/apiClient";
 
 const defaultRoles = [
   { id: 1, name: ROLE.ADMIN, description: "Full access", permissions: ["*"] },
@@ -15,15 +16,33 @@ const defaultRoles = [
 const SetupAdmin = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "Admin", email: "", password: "" });
+    
+
+  useEffect(() => {
+    const checkUsers = async () => {
+      try {
+        const existingUsers = await apiClient.get("/users");
+
+        console.log("Existing users:", existingUsers);
+
+        if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+          navigate("/login");
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        alert("Failed to check existing users. Check if API is running.");
+      }
+    };
+
+    checkUsers();
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
 
-    const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
-    if (existingUsers.length) return navigate("/login");
-
     if (!form.email.trim() || !form.password) return alert("Email and password required");
 
+    if (form.password.length < 6) return alert("Password must be at least 6 characters");
     const roles = JSON.parse(localStorage.getItem("roles")) || [];
     if (!roles.length) localStorage.setItem("roles", JSON.stringify(defaultRoles));
 
@@ -31,7 +50,6 @@ const SetupAdmin = () => {
     const passwordHash = await hashPassword(form.password, salt);
 
     const adminUser = {
-      id: Date.now(),
       name: form.name.trim() || "Admin",
       email: form.email.trim().toLowerCase(),
       phone: "",
@@ -40,13 +58,19 @@ const SetupAdmin = () => {
       status: "Active",
       passwordSalt: salt,
       passwordHash,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      startDate: new Date().toISOString(),
     };
 
-    localStorage.setItem("users", JSON.stringify([adminUser]));
-    alert("Admin created. Please login.");
-    navigate("/login");
+    console.log("Creating admin user...");
+    try {
+      const res = await apiClient.post("/users", adminUser);
+      console.log("Admin created successfully:", res);
+      navigate("/login");
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      const errorMessage = error.message || "Failed to create admin user. Check if API is running.";
+      alert(errorMessage);
+    }
   };
 
   return (

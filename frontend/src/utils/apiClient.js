@@ -4,13 +4,44 @@
  * Handles authentication headers and error handling
  */
 
+import axios from "axios";
+
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
+  import.meta.env.REACT_APP_API_URL ||
   "https://wi3bmu631i.execute-api.ap-south-1.amazonaws.com/production";
 
 class ApiClient {
   constructor(baseURL = API_BASE_URL) {
-    this.baseURL = baseURL;
+    this.client = axios.create({
+      baseURL,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    // Add request interceptor to attach auth token
+    this.client.interceptors.request.use((config) => {
+      const token = this.getAuthToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
+    // Add response interceptor to handle errors
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response) {
+          throw {
+            status: error.response.status,
+            message: error.response.data?.message || `HTTP ${error.response.status}`,
+            data: error.response.data,
+          };
+        }
+        throw error;
+      }
+    );
   }
 
   /**
@@ -28,47 +59,12 @@ class ApiClient {
   }
 
   /**
-   * Build headers with authorization
-   */
-  getHeaders(customHeaders = {}) {
-    const headers = {
-      "Content-Type": "application/json",
-      ...customHeaders,
-    };
-
-    const token = this.getAuthToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    return headers;
-  }
-
-  /**
-   * Handle response errors
-   */
-  async handleResponse(response) {
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw {
-        status: response.status,
-        message: error.message || `HTTP ${response.status}`,
-        data: error,
-      };
-    }
-    return response.json();
-  }
-
-  /**
    * GET request
    */
   async get(endpoint) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: "GET",
-        headers: this.getHeaders(),
-      });
-      return await this.handleResponse(response);
+      const response = await this.client.get(endpoint);
+      return response.data;
     } catch (error) {
       console.error(`GET ${endpoint} failed:`, error);
       throw error;
@@ -80,12 +76,9 @@ class ApiClient {
    */
   async post(endpoint, data) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-      return await this.handleResponse(response);
+      const response = await this.client.post(endpoint, data);
+      console.log(`POST ${endpoint} succeeded:`, response.data);
+      return response.data;
     } catch (error) {
       console.error(`POST ${endpoint} failed:`, error);
       throw error;
@@ -97,12 +90,8 @@ class ApiClient {
    */
   async put(endpoint, data) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: "PUT",
-        headers: this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-      return await this.handleResponse(response);
+      const response = await this.client.put(endpoint, data);
+      return response.data;
     } catch (error) {
       console.error(`PUT ${endpoint} failed:`, error);
       throw error;
@@ -114,12 +103,8 @@ class ApiClient {
    */
   async patch(endpoint, data) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: "PATCH",
-        headers: this.getHeaders(),
-        body: JSON.stringify(data),
-      });
-      return await this.handleResponse(response);
+      const response = await this.client.patch(endpoint, data);
+      return response.data;
     } catch (error) {
       console.error(`PATCH ${endpoint} failed:`, error);
       throw error;
@@ -131,11 +116,8 @@ class ApiClient {
    */
   async delete(endpoint) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: "DELETE",
-        headers: this.getHeaders(),
-      });
-      return await this.handleResponse(response);
+      const response = await this.client.delete(endpoint);
+      return response.data;
     } catch (error) {
       console.error(`DELETE ${endpoint} failed:`, error);
       throw error;

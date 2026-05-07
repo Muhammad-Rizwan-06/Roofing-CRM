@@ -90,6 +90,7 @@ const rules = [
 ];
 
 export function canAccessPath(pathname, roleName) {
+    console.log(`Checking access for path "${pathname}" and role "${roleName}"`); //debug log
   if (!roleName) return false;
   if (roleName === ROLE.ADMIN) return true;
 

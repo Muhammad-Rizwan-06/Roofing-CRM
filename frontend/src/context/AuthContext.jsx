@@ -1,6 +1,6 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { verifyPassword } from "../utils/password";
+import { apiClient } from "../utils/apiClient";
 
 const SESSION_KEY = "session_user";
 
@@ -18,28 +18,28 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(loadSession());
 
   const login = async (email, password) => {
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-    const found = users.find((u) => u.email === String(email).trim().toLowerCase());
+    try {
+      const response = await apiClient.post("/login", {
+        email: String(email).trim().toLowerCase(),
+        password,
+      });
+      const foundUser = response.user;
 
-    if (!found) return { ok: false, message: "Invalid email or password" };
-    if (found.status === "Inactive") return { ok: false, message: "User is inactive" };
-    if (!found.passwordSalt || !found.passwordHash)
-      return { ok: false, message: "User has no password set. Reset password in Settings." };
+      const sessionUser = {
+        id: foundUser.userId,
+        name: foundUser.name,
+        email: foundUser.email,
+        roleId: foundUser.roleId,
+        roleName: foundUser.role,
+      };
 
-    const ok = await verifyPassword(password, found.passwordSalt, found.passwordHash);
-    if (!ok) return { ok: false, message: "Invalid email or password" };
 
-    const sessionUser = {
-      id: found.id,
-      name: found.name,
-      email: found.email,
-      roleId: found.roleId,
-      roleName: found.roleName,
-    };
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
-    setUser(sessionUser);
-    return { ok: true };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+      setUser(sessionUser);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: error.message || "Login failed" };
+    }
   };
 
   const logout = () => {
