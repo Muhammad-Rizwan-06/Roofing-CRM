@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Layout from "../components/layout/layout";
-import { AuthProvider, useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import RequireAuth from "../components/auth/RequireAuth";
 import AccessGuard from "../components/auth/AccessGuard";
 
@@ -80,7 +80,6 @@ const Home = () => {
 
 const AppRoutes = () => {
   return (
-    <AuthProvider>
       <BrowserRouter>
         <Routes>
           {/* Public */}
@@ -464,7 +463,6 @@ const AppRoutes = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
   );
 };
 

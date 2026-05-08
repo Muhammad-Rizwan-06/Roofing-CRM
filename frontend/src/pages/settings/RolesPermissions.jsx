@@ -1,75 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-const LS_KEY = "roles";
-
-const defaultRoles = [
-  {
-    id: 1,
-    name: "Admin",
-    description: "Full access to all modules and settings",
-    permissions: ["*"],
-  },
-  {
-    id: 2,
-    name: "Sales Manager",
-    description: "Manage leads, pipeline, estimates, customers",
-    permissions: ["crm:read", "crm:write", "estimates:read", "estimates:write"],
-  },
-  {
-    id: 3,
-    name: "Project Manager",
-    description: "Manage projects, tasks, workers, documents",
-    permissions: ["projects:read", "projects:write", "tasks:write", "documents:write"],
-  },
-  {
-    id: 4,
-    name: "Worker",
-    description: "View assigned tasks and upload photos",
-    permissions: ["tasks:read", "documents:write"],
-  },
-  {
-    id: 5,
-    name: "Accountant",
-    description: "Manage invoices, payments, expenses, finance reports",
-    permissions: ["finance:*", "reports:read"],
-  },
-  {
-    id: 6,
-    name: "Customer",
-    description: "Customer portal access (own projects, invoices, contracts)",
-    permissions: ["portal:*"],
-  },
-];
-
-const ensureCustomerRole = (list) => {
-  const hasCustomer = (list || []).some((r) => String(r?.name) === "Customer");
-  if (hasCustomer) return list;
-
-  return [
-    ...(list || []),
-    {
-      id: Date.now(),
-      name: "Customer",
-      description: "Customer portal access (own projects, invoices, contracts)",
-      permissions: ["portal:*"],
-    },
-  ];
-};
-
-const load = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(LS_KEY));
-    const list =
-      Array.isArray(saved) && saved.length ? saved : defaultRoles;
-
-    return ensureCustomerRole(list);
-  } catch {
-    return ensureCustomerRole(defaultRoles);
-  }
-};
+import { useRole } from "../../context/RoleContext";
 
 const RolesPermissions = () => {
-  const [roles, setRoles] = useState(() => load());
+  const { roles, loading, error, getRoles, createRole, deleteRole } = useRole();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -77,44 +10,45 @@ const RolesPermissions = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify(roles));
-  }, [roles]);
+    getRoles();
+  }, []);
+
 
   const total = useMemo(() => roles.length, [roles]);
 
-  const addRole = (e) => {
+  const addRole = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return alert("Role name required");
 
-    const newRole = {
-      id: Date.now(),
-      name: form.name.trim(),
-      description: form.description || "",
-      permissions: form.permissions
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean),
-    };
-
-    setRoles((prev) => [...prev, newRole]);
-    setForm({ name: "", description: "", permissions: "" });
+    try {
+      await createRole({
+        name: form.name.trim().charAt(0).toUpperCase() + form.name.trim().slice(1),
+        description: form.description || "",
+        permissions: form.permissions
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      });
+      setForm({ name: "", description: "", permissions: "" });
+    } catch (err) {
+      alert(`Failed to add role: ${err.message}`);
+    }
   };
 
-  const remove = (id) => {
+  const remove = async (roleId) => {
     const ok = confirm("Delete this role?");
     if (!ok) return;
 
-    const role = roles.find((r) => r.id === id);
-    if (role?.name === "Admin") return alert("Admin role cannot be deleted.");
-    if (role?.name === "Customer") return alert("Customer role should not be deleted (portal).");
+    const role = roles.find((r) => r.roleId === roleId);
+    if (role?.name.toLowerCase() === "admin") return alert("Admin role cannot be deleted.");
+    if (role?.name.toLowerCase() === "customer")
+      return alert("Customer role should not be deleted (portal).");
 
-    setRoles((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  const resetDefaults = () => {
-    const ok = confirm("Reset roles to defaults?");
-    if (!ok) return;
-    setRoles(ensureCustomerRole(defaultRoles));
+    try {
+      await deleteRole(roleId);
+    } catch (err) {
+      alert(`Failed to delete role: ${err.message}`);
+    }
   };
 
   return (
@@ -125,26 +59,22 @@ const RolesPermissions = () => {
             Roles & Permissions
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
-            RBAC foundation for backend phase (stored in localStorage)
+            Manage roles and permissions
           </p>
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {error}
+            </p>
+          )}
         </div>
 
-        <div className="flex gap-2">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-            <p className="text-xs text-gray-500 dark:text-gray-300">
-              Total Roles
-            </p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">
-              {total}
-            </p>
-          </div>
-
-          <button
-            onClick={resetDefaults}
-            className="bg-gray-200 px-4 py-2 rounded-xl dark:bg-gray-700 dark:text-white hover:bg-gray-600 transition h-fit"
-          >
-            Reset Defaults
-          </button>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Total Roles
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {loading ? "..." : total}
+          </p>
         </div>
       </div>
 
@@ -181,8 +111,11 @@ const RolesPermissions = () => {
           />
         </div>
 
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition w-full">
-          Add Role
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading}
+        >
+          {loading ? "Adding..." : "Add Role"}
         </button>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -206,9 +139,9 @@ const RolesPermissions = () => {
             </tr>
           </thead>
           <tbody>
-            {roles.map((r) => (
+            {roles.map((r, i) => (
               <tr
-                key={r.id}
+                key={i}
                 className="border-t border-gray-100 dark:border-gray-800"
               >
                 <td className="p-3 font-medium text-gray-800 dark:text-white">
@@ -222,10 +155,11 @@ const RolesPermissions = () => {
                 </td>
                 <td className="p-3 text-right">
                   <button
-                    className="text-red-600 hover:underline"
-                    onClick={() => remove(r.id)}
+                    className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => remove(r.roleId)}
+                    disabled={loading}
                   >
-                    Delete
+                    {loading ? "..." : "Delete"}
                   </button>
                 </td>
               </tr>

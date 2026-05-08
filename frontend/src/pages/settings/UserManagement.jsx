@@ -1,23 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useEmployee } from "../../context/EmployeeContext";
+import { useRole } from "../../context/RoleContext";
 import { generateSalt, hashPassword } from "../../utils/password";
 
-const usersKey = "users";
-const rolesKey = "roles";
-
-const lsGet = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-
 const UserManagement = () => {
-  const [roles, setRoles] = useState(() => lsGet(rolesKey, []));
-  const [users, setUsers] = useState(() => lsGet(usersKey, []));
+  const { employees: users, loading, error, create, update, delete: deleteUser, getAll } = useEmployee();
+  const { getRoles, roles } = useRole();
 
   const [editId, setEditId] = useState(null);
 
@@ -27,19 +15,21 @@ const UserManagement = () => {
     phone: "",
     roleId: "",
     status: "Active",
-    password: "", // ✅ NEW
+    password: "",
   });
 
+  // Load all users on component mount
   useEffect(() => {
-    setRoles(lsGet(rolesKey, []));
+    getAll();
+    getRoles();
   }, []);
 
+  // Set default role when roles load
   useEffect(() => {
-    lsSet(usersKey, users);
-  }, [users]);
-
-  const roleNameById = (roleId) =>
-    roles.find((r) => String(r.id) === String(roleId))?.name || "—";
+    if (!form.roleId && roles.length) {
+      setForm((p) => ({ ...p, roleId: String(roles[0].roleId) }));
+    }
+  }, [roles]);
 
   const reset = () => {
     setEditId(null);
@@ -47,18 +37,11 @@ const UserManagement = () => {
       name: "",
       email: "",
       phone: "",
-      roleId: roles[0]?.id ? String(roles[0].id) : "",
+      roleId: roles[0]?.roleId ? String(roles[0].roleId) : "",
       status: "Active",
       password: "",
     });
   };
-
-  useEffect(() => {
-    if (!form.roleId && roles.length) {
-      setForm((p) => ({ ...p, roleId: String(roles[0].id) }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roles]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -67,28 +50,27 @@ const UserManagement = () => {
     if (!form.email.trim()) return alert("Email required");
     if (!form.roleId) return alert("Role required");
 
-    const selectedRole = roles.find((r) => String(r.id) === String(form.roleId));
+    const selectedRole = roles.find((r) => String(r.roleId) === String(form.roleId));
     const roleName = selectedRole?.name || "";
 
     const payloadBase = {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
-      phone: form.phone.trim(),
+      phone: form?.phone.trim(),
       roleId: Number(form.roleId),
-      roleName, // ✅ store roleName for session/sidebar
+      roleName,
       status: form.status,
-      updatedAt: new Date().toISOString(),
     };
 
-    // unique email
+    // unique email check
     const emailTaken = users.some(
-      (u) => u.email === payloadBase.email && u.id !== editId
+      (u) => u.email === payloadBase.email && u.employeeId !== editId
     );
     if (emailTaken) return alert("Email already exists");
 
-    const existingUser = editId ? users.find((u) => u.id === editId) : null;
+    const existingUser = editId ? users.find((u) => u.employeeId === editId) : null;
 
-    // ✅ Password rules:
+    // Password rules:
     // - new user: password required
     // - edit user: password optional (only updates if provided)
     let passwordSalt = existingUser?.passwordSalt || null;
@@ -109,37 +91,39 @@ const UserManagement = () => {
       passwordHash,
     };
 
-    if (editId) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === editId ? { ...u, ...payload } : u))
-      );
-    } else {
-      setUsers((prev) => [
-        { id: Date.now(), ...payload, createdAt: new Date().toISOString() },
-        ...prev,
-      ]);
+    try {
+      if (editId) {
+        await update(editId, payload);
+      } else {
+        await create(payload);
+      }
+      reset();
+    } catch (err) {
+      alert(`Failed to save user: ${err.message}`);
     }
-
-    reset();
   };
 
   const onEdit = (u) => {
-    setEditId(u.id);
+    setEditId(u.employeeId);
     setForm({
       name: u.name || "",
       email: u.email || "",
       phone: u.phone || "",
       roleId: String(u.roleId || ""),
       status: u.status || "Active",
-      password: "", // do not show stored password
+      password: "",
     });
   };
 
-  const onDelete = (id) => {
+  const onDelete = async (employeeId) => {
     const ok = confirm("Delete this user?");
     if (!ok) return;
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    if (editId === id) reset();
+    try {
+      await deleteUser(employeeId);
+      if (editId === employeeId) reset();
+    } catch (err) {
+      alert(`Failed to delete user: ${err.message}`);
+    }
   };
 
   const total = useMemo(() => users.length, [users]);
@@ -151,14 +135,14 @@ const UserManagement = () => {
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
             User Management
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-300">
-            Frontend-only auth demo (email/password/roles). Backend auth will replace this later.
-          </p>
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
           <p className="text-xs text-gray-500 dark:text-gray-300">Total Users</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? "..." : users.length}</p>
         </div>
       </div>
 
@@ -211,7 +195,7 @@ const UserManagement = () => {
           >
             <option value="">Select role</option>
             {roles.map((r) => (
-              <option key={r.id} value={r.id}>
+              <option key={r.roleId} value={r.roleId}>
                 {r.name}
               </option>
             ))}
@@ -235,14 +219,14 @@ const UserManagement = () => {
             onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
           />
 
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition md:col-span-3">
-            {editId ? "Update" : "Add"}
+          <button 
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition md:col-span-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            {loading ? (editId ? "Updating..." : "Adding...") : (editId ? "Update" : "Add")}
           </button>
         </div>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Roles are managed in <b>Roles & Permissions</b>. Passwords are stored as PBKDF2 hashes (demo).
-        </p>
       </form>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
@@ -260,16 +244,24 @@ const UserManagement = () => {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-t border-gray-100 dark:border-gray-800">
+              <tr key={u.employeeId} className="border-t border-gray-100 dark:border-gray-800">
                 <td className="p-3 font-medium text-gray-800 dark:text-white">{u.name}</td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">{u.email}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{roleNameById(u.roleId)}</td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">{(u.roleName || "")}</td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">{u.status}</td>
                 <td className="p-3 text-right space-x-3">
-                  <button className="text-blue-600 hover:underline" onClick={() => onEdit(u)}>
+                  <button 
+                    className="text-blue-600 hover:underline disabled:opacity-50"
+                    onClick={() => onEdit(u)}
+                    disabled={loading}
+                  >
                     Edit
                   </button>
-                  <button className="text-red-600 hover:underline" onClick={() => onDelete(u.id)}>
+                  <button 
+                    className="text-red-600 hover:underline disabled:opacity-50"
+                    onClick={() => onDelete(u.employeeId)}
+                    disabled={loading}
+                  >
                     Delete
                   </button>
                 </td>

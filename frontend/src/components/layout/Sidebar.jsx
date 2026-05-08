@@ -25,7 +25,7 @@ const Sidebar = () => {
   // ✅ Customer Portal sidebar
   if (roleName === ROLE.CUSTOMER) {
     return (
-      <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col fixed top-0 left-0">
+      <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col">
         <h2 className="text-2xl font-bold text-blue-600 mb-8">
           Customer Portal
         </h2>
