@@ -1,19 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-
-// Safe localStorage parser that handles both old and new data formats
-const lsGet = (key, fallback = []) => {
-  try {
-    const data = JSON.parse(localStorage.getItem(key));
-    if (Array.isArray(data)) return data;
-    if (data?.list && Array.isArray(data.list)) return data.list;
-    return fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+import { useProjects } from "../../context/ProjectsContext";
 
 const daysBetween = (start, end) => {
   const s = new Date(start);
@@ -23,7 +10,7 @@ const daysBetween = (start, end) => {
 };
 
 const ProjectSchedule = () => {
-  const [projects, setProjects] = useState(() => lsGet("projects", []));
+  const { projects, loading, error, getAll, updateProject } = useProjects();
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
@@ -31,14 +18,13 @@ const ProjectSchedule = () => {
     endDate: "",
   });
 
+  // Fetch all projects on component mount
   useEffect(() => {
-    const onFocus = () => setProjects(lsGet("projects", []));
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
+    getAll();
+  }, [getAll]);
 
   const startEdit = (p) => {
-    setEditingId(p.id);
+    setEditingId(p.projectId);
     setForm({
       startDate: p.startDate || "",
       endDate: p.endDate || "",
@@ -50,7 +36,7 @@ const ProjectSchedule = () => {
     setForm({ startDate: "", endDate: "" });
   };
 
-  const saveSchedule = () => {
+  const saveSchedule = async () => {
     if (!editingId) return;
 
     if (form.startDate && form.endDate) {
@@ -59,26 +45,25 @@ const ProjectSchedule = () => {
       if (e < s) return alert("End date cannot be before start date");
     }
 
-    const updated = projects.map((p) =>
-      p.id === editingId
-        ? {
-            ...p,
-            startDate: form.startDate || "",
-            endDate: form.endDate || "",
-            updatedAt: new Date().toISOString(),
-          }
-        : p,
-    );
+    console.log("Saving schedule for project", editingId, form);
 
-    setProjects(updated);
-    lsSet("projects", updated);
-    cancelEdit();
+    const result = await updateProject(editingId, {
+      startDate: form.startDate || "",
+      endDate: form.endDate || "",
+    });
+
+    if (result.ok) {
+      cancelEdit();
+    } else {
+      alert("Failed to save schedule: " + result.message);
+    }
   };
 
   const scheduledCount = useMemo(
     () => projects.filter((p) => p.startDate || p.endDate).length,
     [projects],
   );
+
 
   return (
     <div className="space-y-6">
@@ -88,7 +73,7 @@ const ProjectSchedule = () => {
             Project Schedule
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
-            Manage project start/end dates (stored inside Projects)
+            Manage project start/end dates
           </p>
         </div>
 
@@ -101,6 +86,12 @@ const ProjectSchedule = () => {
           </p>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300">
+          Error: {error}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-x-auto border border-gray-100 dark:border-gray-800">
         <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
@@ -127,17 +118,17 @@ const ProjectSchedule = () => {
                   ? daysBetween(p.startDate, p.endDate)
                   : null;
 
-              const isEditing = editingId === p.id;
+              const isEditing = editingId === p.projectId;
 
               return (
                 <tr
-                  key={p.id}
+                  key={p.projectId}
                   className="border-t border-gray-100 dark:border-gray-800"
                 >
                   <td className="px-4 py-3 font-medium">
                     <Link
                       className="text-blue-600 hover:underline"
-                      to={`/projects/${p.id}`}
+                      to={`/projects/${p.projectId}`}
                     >
                       {p.name}
                     </Link>

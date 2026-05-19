@@ -81,7 +81,7 @@
 
 ---
 
-## 1️⃣ USERS Table
+## 1️⃣ USERS Table [DONE]
 
 **Purpose:** User accounts, authentication, role assignment
 
@@ -135,7 +135,7 @@ Sort Key (SK):       PROFILE#{CreatedDate}
 
 ---
 
-## 2️⃣ ROLES Table
+## 2️⃣ ROLES Table [DONE]
 
 **Purpose:** Role definitions, permissions, access control
 
@@ -309,48 +309,20 @@ Sort Key (SK):       TYPE#{EntityType}
 {
   "PK": "PROJECT#proj-001",
   "SK": "PROFILE#2026-04-01",
-  "EntityType": "PROJECT",
-  "Name": "Ali Khan Residential Roof Replacement",
-  "CustomerId": "CUSTOMER#cust-001",
-  "CustomerName": "Ali Khan",
-  "LeadId": "LEAD#lead-001",
-  "RoofType": "Asphalt Shingle",
-  "Area": 1200,
-  "Status": "In Progress",
-  "Priority": "High",
-  "Budget": 8500,
-  "EstimatedCost": 6200,
-  "ActualCost": 6200,
-  "Profit": 2300,
-  "ProfitMargin": 27.06,
-  "StartDate": "2026-04-05",
-  "EndDate": "2026-04-30",
-  "CompletedAt": null,
-  "SupervisorId": "USER#550e8400-e29b-41d4-a716-446655440001",
-  "SupervisorName": "Project Manager Name",
-  "Location": {
-    "Address": "123 Main St, Dubai",
-    "City": "Dubai",
-    "Latitude": 25.2048,
-    "Longitude": 55.2708
-  },
-  "WeatherConditions": "Clear",
-  "Notes": "High-priority residential project",
-  "MaterialCount": 3,
-  "WorkerCount": 2,
-  "TaskCount": 5,
-  "DocumentCount": 8,
-  "InspectionCount": 1,
+  "entityType": "PROJECT",
+  "projectId": "PROJECT#proj-001",
+  "name": "Ali Khan Residential Roof Replacement",
+  "client": "Ali Khan",
+  "status": "In Progress",
+  "budget": 8500,
+  "startDate": "2026-04-05",
+  "endDate": "2026-04-30",
+  "completedAt": null,
+  "supervisorName": "Project Manager Name",
   "CreatedAt": "2026-04-01T08:00:00Z",
   "UpdatedAt": "2026-05-04T11:45:00Z",
-  "GSI1PK": "CUSTOMER#cust-001",
-  "GSI1SK": "Status#CreatedAt",
-  "GSI2PK": "STATUS#In Progress",
-  "GSI2SK": "StartDate",
-  "GSI3PK": "SUPERVISOR#550e8400-e29b-41d4-a716-446655440001",
-  "GSI3SK": "CreatedAt",
-  "GSI4PK": "YEAR#2026",
-  "GSI4SK": "Budget"
+  "GSI1PK": "STATUS#In Progress",
+  "GSI1SK": "StartDate",
 }
 ```
 
@@ -361,40 +333,34 @@ Sort Key (SK):       TYPE#{EntityType}
 {
   "PK": "PROJECT#proj-001",
   "SK": "MATERIAL#mat-001#qty-40",
-  "EntityType": "PROJECT_MATERIAL",
-  "MaterialId": "MATERIAL#mat-001",
-  "MaterialName": "Asphalt Shingles",
-  "Category": "Roofing Materials",
-  "Qty": 40,
-  "Unit": "Bundle",
-  "UnitPrice": 50,
-  "Total": 2000
+  "meterialId": "MATERIAL#mat-001",
+  "entityType": "PROJECT_MATERIAL",
+  "materialName": "Asphalt Shingles",
+  "qty": 40,
+  "price": 2000
 }
 
 // PROJECT_WORKER items
 {
   "PK": "PROJECT#proj-001",
   "SK": "WORKER#wrk-001",
-  "EntityType": "PROJECT_WORKER",
-  "WorkerId": "WORKER#wrk-001",
-  "WorkerName": "Ahmed Hassan",
-  "Role": "Lead Roofer",
-  "HourlyRate": 45,
-  "Hours": 80,
-  "Total": 3600,
-  "Status": "Assigned"
+  "entityType": "PROJECT_WORKER",
+  "workerId": "WORKER#wrk-001",
+  "workerName": "Ahmed Hassan",
+  "role": "Lead Roofer",
+  "hours" : null, 
+  "hourlyRate": 45,
+  "status": "Assigned"
 }
 
 // PROJECT_TASK items
 {
   "PK": "PROJECT#proj-001",
   "SK": "TASK#task-001",
-  "EntityType": "PROJECT_TASK",
-  "TaskId": "TASK#task-001",
-  "TaskTitle": "Roof Inspection",
-  "Status": "Completed",
-  "Priority": "High",
-  "DueDate": "2026-04-06"
+  "entityType": "PROJECT_TASK",
+  "taskId": "TASK#task-001",
+  "taskTitle": "Roof Inspection",
+  "status": "Completed",
 }
 
 // PROJECT_DOCUMENT items
@@ -620,7 +586,7 @@ Sort Key (SK):       CREATED#{CreatedDate}
 
 ---
 
-## 7️⃣ LEADS Table
+## 7️⃣ LEADS Table [DONE]
 
 **Purpose:** Sales leads, opportunities, pipeline tracking
 
@@ -635,37 +601,19 @@ Sort Key (SK):       CREATED#{CreatedDate}
 {
   "PK": "LEAD#lead-001",
   "SK": "CREATED#2026-04-15T09:30:00Z",
-  "EntityType": "LEAD",
-  "Name": "Hassan Constructions",
-  "Email": "hassan@constructions.com",
-  "Phone": "+971-50-1234567",
-  "ContactPerson": "Hassan Al-Mazrouei",
-  "Status": "Estimate Sent",
-  "Stage": "Negotiation",
-  "EstimatedValue": 50000,
-  "Source": "Referral",
-  "ReferredBy": "Ali Khan",
-  "AssignedToId": "USER#550e8400-e29b-41d4-a716-446655440000",
-  "AssignedToName": "Sales Manager",
-  "PropertyType": "Commercial",
-  "PropertyAddress": "123 Business Blvd, Dubai",
-  "Notes": "High-value commercial project, roofing + siding",
-  "LastContactDate": "2026-05-02",
-  "NextFollowUp": "2026-05-08",
-  "Attachments": ["DOCUMENT#doc-001"],
-  "EstimateId": "ESTIMATE#est-001",
-  "ConvertedTo": "PROJECT#proj-001",
-  "ConversionDate": "2026-04-20T10:00:00Z",
-  "CreatedAt": "2026-04-15T09:30:00Z",
-  "UpdatedAt": "2026-05-04T14:20:00Z",
+  "name": "Hassan Constructions",
+  "email": "hassan@constructions.com",
+  "phone": "+971-50-1234567",
+  "status": "Estimate Sent",
+  "stage": "Negotiation",
+  "estimatedValue": 50000,
+  "conversionDate": "2026-04-20T10:00:00Z",
+  "createdAt": "2026-04-15T09:30:00Z",
+  "updatedAt": "2026-05-04T14:20:00Z",
   "GSI1PK": "STATUS#Estimate Sent",
   "GSI1SK": "CreatedAt",
-  "GSI2PK": "ASSIGNEE#550e8400-e29b-41d4-a716-446655440000",
-  "GSI2SK": "CreatedAt",
-  "GSI3PK": "MONTH#2026-04",
-  "GSI3SK": "EstimatedValue",
-  "GSI4PK": "STAGE#Negotiation",
-  "GSI4SK": "EstimatedValue"
+  "GSI2PK": "STAGE#Negotiation",
+  "GSI2SK": "EstimatedValue"
 }
 ```
 

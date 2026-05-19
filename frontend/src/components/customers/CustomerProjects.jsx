@@ -9,7 +9,7 @@ const CustomerProjects = ({ projects }) => {
       <div className="space-y-4">
         {projects.map((project) => (
           <div
-            key={project.id}
+            key={project.projectId}
             className="border p-4 rounded-lg flex justify-between items-center"
           >
             <div>
@@ -17,7 +17,7 @@ const CustomerProjects = ({ projects }) => {
               <p className="text-sm text-gray-500">Status: {project.status}</p>
             </div>
 
-            <Link to={`/projects/${project.id}`} className="text-blue-600">
+            <Link to={`/projects/${project.projectId}`} className="text-blue-600">
               View Project
             </Link>
           </div>

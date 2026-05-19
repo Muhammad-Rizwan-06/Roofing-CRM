@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import LeadsTable from "../components/leads/LeadsTable";
 import AddLeadModal from "../components/leads/AddLeadModal";
 import { safeParse } from "../utils/storageHelper";
+import { useLeads } from "../context/LeadContext";
+import { create } from "axios";
+import { useProjects } from "../context/ProjectsContext";
 
 const normalizeLeadStatus = (status) => {
   // migrate old statuses -> pipeline equivalents
@@ -21,76 +24,110 @@ const calcEstimateTotal = (estimate) => {
 };
 
 const Leads = () => {
-  const [leads, setLeads] = useState(() => {
-    // ✅ REAL ONLY (no mock data)
-    const storedLeads = localStorage.getItem("leads");
-    const base = storedLeads ? JSON.parse(storedLeads) : [];
-    return (base || []).map((l) => ({
-      ...l,
-      status: normalizeLeadStatus(l.status),
-      estimatedValue: Number(l.estimatedValue || 0),
-    }));
-  });
-
+  const {
+    leads,
+    loading,
+    error,
+    getAll,
+    createLead,
+    deleteLead: deleteLeadAPI,
+  } = useLeads();
+  const { createProject } = useProjects();
   const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState(null);
 
+  // Fetch leads on mount
   useEffect(() => {
-    localStorage.setItem("leads", JSON.stringify(leads));
-  }, [leads]);
+    getAll();
+  }, [getAll]);
 
-  const addLead = (newLead) => {
-    setLeads((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        ...newLead,
-        status: normalizeLeadStatus(newLead.status),
-        estimatedValue: Number(newLead.estimatedValue || 0),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]);
+  // Auto-dismiss message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const addLead = async (newLead) => {
+    const result = await createLead({
+      ...newLead,
+      status: normalizeLeadStatus(newLead.status),
+      estimatedValue: Number(newLead.estimatedValue || 0),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (result.ok) {
+      setMessage({
+        type: "success",
+        text: result.message || "Lead created successfully",
+      });
+      setOpen(false);
+    } else {
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to create lead",
+      });
+    }
   };
 
-  const deleteLead = (id) => {
-    setLeads((prev) => prev.filter((lead) => lead.id !== id));
+  const deleteLead = async (leadId) => {
+    console.log("Attempting to delete lead with ID:", leadId);
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this lead?",
+    );
+    if (!confirmed) return;
+
+    const result = await deleteLeadAPI(leadId);
+    if (result.ok) {
+      setMessage({
+        type: "success",
+        text: result.message || "Lead deleted successfully",
+      });
+    } else {
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to delete lead",
+      });
+    }
   };
 
   // ✅ Convert Lead → Project (linked to accepted estimate if exists)
-  const convertLead = (lead) => {
+  const convertLead = async (lead) => {
     const existingProjects = JSON.parse(localStorage.getItem("projects")) || [];
     const estimates = JSON.parse(localStorage.getItem("estimates")) || [];
 
     const acceptedEstimate = estimates
-      .filter((e) => Number(e.leadId) === Number(lead.id))
+      .filter((e) => Number(e.leadId) === Number(lead.leadId))
       .find((e) => e.status === "Accepted");
 
     const budget = acceptedEstimate
       ? calcEstimateTotal(acceptedEstimate)
       : Number(lead.estimatedValue || 0);
 
-    const projectId = Date.now();
 
     const newProject = {
-      id: projectId,
       name: `Roof Project - ${lead.name}`,
       client: lead.name,
       status: "Pending",
       budget,
       supervisor: "",
       team: "",
-      materials: [],
-      workers: [],
-      tasks: [],
+    //   materials: [],
+    //   workers: [],
+    //   tasks: [],
       source: "Lead Conversion",
-      leadId: lead.id,
       estimateId: acceptedEstimate?.id || null,
     };
 
-    localStorage.setItem(
-      "projects",
-      JSON.stringify([...existingProjects, newProject]),
-    );
+
+    createProject(newProject); // Create project in API
+
+    // localStorage.setItem(
+    //   "projects",
+    //   JSON.stringify([...existingProjects, newProject]),
+    // );
 
     // If we converted via accepted estimate, link that estimate to the project
     if (acceptedEstimate) {
@@ -107,24 +144,50 @@ const Leads = () => {
       localStorage.setItem("estimates", JSON.stringify(updatedEstimates));
     }
 
-    // Remove lead (keeps your existing behavior)
-    setLeads((prev) => prev.filter((l) => l.id !== lead.id));
-
+    // Delete lead from API
+    await deleteLeadAPI(lead.leadId);
     alert(`Lead "${lead.name}" converted to Project`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Leads</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+          Leads
+        </h1>
 
         <button
           onClick={() => setOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+          disabled={loading}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition"
         >
           + Add Lead
         </button>
       </div>
+
+      {/* {loading && (
+        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+          Loading leads...
+        </div>
+      )} */}
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+          Error: {error}
+        </div>
+      )}
+
+      {message && (
+        <div
+          className={`p-4 rounded-lg ${
+            message.type === "success"
+              ? "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800"
+              : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
 
       <LeadsTable leads={leads} onDelete={deleteLead} onConvert={convertLead} />
 

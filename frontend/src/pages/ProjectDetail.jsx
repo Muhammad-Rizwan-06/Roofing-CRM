@@ -3,10 +3,31 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
 import { safeParse } from "../utils/storageHelper";
+import { useProjects } from "../context/ProjectsContext";
 
 const ProjectDetails = () => {
-  const { id } = useParams();
+  const { projectId } = useParams();
+  const {
+    projects,
+    loading,
+    error,
+    getById,
+    updateProject: updateProjectAPI,
+    addMaterial: addMaterialApi,
+    addWorker: addWorkerApi,
+    addTask: addTaskApi,
+  } = useProjects();
   const navigate = useNavigate();
+
+  if (!projectId) {
+    return (
+      <div className="p-4">
+        <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300">
+          Project not found
+        </div>
+      </div>
+    );
+  }
 
   const { user } = useAuth();
   const roleName = user?.roleName;
@@ -28,6 +49,7 @@ const ProjectDetails = () => {
   const canViewPhotosAttachmentsLinks = isAdmin || isPM || isWorker;
 
   const [project, setProject] = useState(null);
+  const [projectLoading, setProjectLoading] = useState(true);
   const [financeRefreshKey, setFinanceRefreshKey] = useState(0);
 
   const [materialForm, setMaterialForm] = useState({
@@ -48,10 +70,45 @@ const ProjectDetails = () => {
   });
 
   useEffect(() => {
-    const projects = safeParse("projects");
-    const found = projects.find((p) => p.id === Number(id));
-    setProject(found || null);
-  }, [id]);
+    let cancelled = false;
+
+    const fetchProject = async () => {
+      setProjectLoading(true);
+      try {
+        const result = await getById(projectId);
+
+        if (cancelled) return;
+
+        if (result.ok) {
+          const fullProject = {
+            ...result.data.project,
+            materials: result.data.materials || [],
+            workers: result.data.workers || [],
+            tasks: result.data.tasks || [],
+          };
+          setProject(fullProject);
+        } else {
+          console.error("Failed to fetch project:", result.message);
+          setProject(null);
+        }
+      } catch (err) {
+        console.error("Error fetching project:", err);
+        if (!cancelled) {
+          setProject(null);
+        }
+      } finally {
+        if (!cancelled) setProjectLoading(false);
+      }
+    };
+
+    if (projectId) {
+      fetchProject();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, getById]);
 
   const updateProject = (updatedProject) => {
     if (!canEditProject) {
@@ -59,73 +116,80 @@ const ProjectDetails = () => {
       return;
     }
 
-    const projects = safeParse("projects");
-    const newProjects = projects.map((p) =>
-      p.id === updatedProject.id ? { ...p, ...updatedProject } : p,
-    );
-
-    localStorage.setItem("projects", JSON.stringify(newProjects));
+    updateProjectAPI(updatedProject);
     setProject(updatedProject);
   };
 
-  const addMaterial = () => {
+  const addMaterial = async () => {
     if (!canEditProject) return alert("Read-only: cannot add materials.");
 
-    const projects = safeParse("projects");
-    const current = projects.find((p) => p.id === Number(id));
-    if (!current) return;
+    if (!project) return;
 
     const total =
       Number(materialForm.quantity || 0) * Number(materialForm.price || 0);
 
-    const newMaterial = { id: Date.now(), ...materialForm, total };
+    const newMaterial = { ...materialForm, total };
 
-    const updatedProject = {
-      ...current,
-      materials: [...(current.materials || []), newMaterial],
-    };
+    // Call API first
+    const result = await addMaterialApi(projectId, newMaterial);
 
-    updateProject(updatedProject);
-    setMaterialForm({ name: "", quantity: "", price: "" });
+    // Only update local state if API call succeeded
+    if (result.ok) {
+      setProject((prevProject) => ({
+        ...prevProject,
+        materials: [...(prevProject.materials || []), result.data],
+      }));
+      setMaterialForm({ name: "", quantity: "", price: "" });
+    } else {
+      alert("Failed to add material: " + result.message);
+    }
   };
 
-  const addWorker = () => {
+  const addWorker = async () => {
     if (!canEditProject) return alert("Read-only: cannot add workers.");
 
-    const projects = safeParse("projects");
-    const current = projects.find((p) => p.id === Number(id));
-    if (!current) return;
+    if (!project) return;
 
     const total = Number(workerForm.hours || 0) * Number(workerForm.rate || 0);
 
-    const newWorker = { id: Date.now(), ...workerForm, total };
+    const newWorker = {...workerForm, total };
 
-    const updatedProject = {
-      ...current,
-      workers: [...(current.workers || []), newWorker],
-    };
+    // Call API first
+    const result = await addWorkerApi(projectId, newWorker);
 
-    updateProject(updatedProject);
-    setWorkerForm({ name: "", role: "", hours: "", rate: "" });
+    // Only update local state if API call succeeded
+    if (result.ok) {
+      setProject((prevProject) => ({
+        ...prevProject,
+        workers: [...(prevProject.workers || []), result.data],
+      }));
+      setWorkerForm({ name: "", role: "", hours: "", rate: "" });
+    } else {
+      alert("Failed to add worker: " + result.message);
+    }
   };
 
-  const addTask = () => {
+  const addTask = async () => {
     if (!canEditProject)
       return alert("Read-only: cannot add tasks inside project.");
 
-    const projects = safeParse("projects");
-    const current = projects.find((p) => p.id === Number(id));
-    if (!current) return;
+    if (!project) return;
 
-    const newTask = { id: Date.now(), ...taskForm };
+    const newTask = {...taskForm };
 
-    const updatedProject = {
-      ...current,
-      tasks: [...(current.tasks || []), newTask],
-    };
+    // Call API first
+    const result = await addTaskApi(projectId, newTask);
 
-    updateProject(updatedProject);
-    setTaskForm({ name: "", assigned: "", status: "Pending" });
+    // Only update local state if API call succeeded
+    if (result.ok) {
+      setProject((prevProject) => ({
+        ...prevProject,
+        tasks: [...(prevProject.tasks || []), result.data],
+      }));
+      setTaskForm({ name: "", assigned: "", status: "Pending" });
+    } else {
+      alert("Failed to add task: " + result.message);
+    }
   };
 
   const materialCost = (project?.materials || []).reduce(
@@ -142,7 +206,7 @@ const ProjectDetails = () => {
 
     const meta = safeParse("documents_meta");
     const forProject = meta.filter(
-      (d) => Number(d.projectId) === Number(project.id),
+      (d) => Number(d.projectId) === Number(projectId),
     );
 
     const contracts = forProject.filter((d) => d.type === "contract").length;
@@ -157,7 +221,7 @@ const ProjectDetails = () => {
       attachments,
       total: contracts + photos + attachments,
     };
-  }, [project, financeRefreshKey]);
+  }, [project, projectId, financeRefreshKey]);
 
   const finance = useMemo(() => {
     if (!project) {
@@ -179,10 +243,10 @@ const ProjectDetails = () => {
     const expenses = safeParse("expenses");
 
     const projectInvoices = invoices.filter(
-      (inv) => Number(inv.projectId) === Number(project.id),
+      (inv) => Number(inv.projectId) === Number(projectId),
     );
     const projectExpenses = expenses.filter(
-      (ex) => Number(ex.projectId) === Number(project.id),
+      (ex) => Number(ex.projectId) === Number(projectId),
     );
 
     const calcInvoiceTotal = (inv) => {
@@ -226,7 +290,7 @@ const ProjectDetails = () => {
       cashProfit,
     };
   }, [
-    project?.id,
+    projectId,
     project?.budget,
     materialCost,
     workerCost,
@@ -234,7 +298,6 @@ const ProjectDetails = () => {
     project,
   ]);
 
-  if (!project) return <div>Loading...</div>;
 
   const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -244,9 +307,9 @@ const ProjectDetails = () => {
       <div className="flex flex-col gap-3">
         <div className="flex flex-col  md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{project.name}</h1>
+            <h1 className="text-2xl font-bold">{project?.name}</h1>
             <p className="text-sm text-gray-500">
-              Client: <span className="font-medium">{project.client}</span>
+              Client: <span className="font-medium">{project?.client}</span>
             </p>
             {(isWorker || isAccountant) && (
               <p className="text-sm text-gray-500 mt-1">
@@ -260,7 +323,7 @@ const ProjectDetails = () => {
             {canCreateInvoice && (
               <button
                 onClick={() =>
-                  navigate(`/finance/invoices?projectId=${project.id}`)
+                  navigate(`/finance/invoices?projectId=${projectId}`)
                 }
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
               >
@@ -271,7 +334,7 @@ const ProjectDetails = () => {
             {canAddExpense && (
               <button
                 onClick={() =>
-                  navigate(`/finance/expenses?projectId=${project.id}`)
+                  navigate(`/finance/expenses?projectId=${projectId}`)
                 }
                 className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
               >
@@ -283,7 +346,7 @@ const ProjectDetails = () => {
             {canUploadContract && (
               <button
                 onClick={() =>
-                  navigate(`/documents/contracts?projectId=${project.id}&new=1`)
+                  navigate(`/documents/contracts?projectId=${projectId}&new=1`)
                 }
                 className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
               >
@@ -295,7 +358,7 @@ const ProjectDetails = () => {
               <>
                 <button
                   onClick={() =>
-                    navigate(`/documents/photos?projectId=${project.id}&new=1`)
+                    navigate(`/documents/photos?projectId=${projectId}&new=1`)
                   }
                   className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
                 >
@@ -305,7 +368,7 @@ const ProjectDetails = () => {
                 <button
                   onClick={() =>
                     navigate(
-                      `/documents/attachments?projectId=${project.id}&new=1`,
+                      `/documents/attachments?projectId=${projectId}&new=1`,
                     )
                   }
                   className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition"
@@ -331,7 +394,7 @@ const ProjectDetails = () => {
             <button
               className="text-blue-600 hover:underline"
               onClick={() =>
-                navigate(`/documents/contracts?projectId=${project.id}`)
+                navigate(`/documents/contracts?projectId=${projectId}`)
               }
             >
               View Contracts ({docCounts.contracts})
@@ -343,7 +406,7 @@ const ProjectDetails = () => {
               <button
                 className="text-blue-600 hover:underline"
                 onClick={() =>
-                  navigate(`/documents/photos?projectId=${project.id}`)
+                  navigate(`/documents/photos?projectId=${projectId}`)
                 }
               >
                 View Photos ({docCounts.photos})
@@ -351,7 +414,7 @@ const ProjectDetails = () => {
               <button
                 className="text-blue-600 hover:underline"
                 onClick={() =>
-                  navigate(`/documents/attachments?projectId=${project.id}`)
+                  navigate(`/documents/attachments?projectId=${projectId}`)
                 }
               >
                 View Attachments ({docCounts.attachments})
@@ -364,13 +427,13 @@ const ProjectDetails = () => {
       {/* PROJECT INFO */}
       <div className="bg-white dark:bg-gray-900 p-4 rounded shadow">
         <p>
-          <b>Client:</b> {project.client}
+          <b>Client:</b> {project?.client}
         </p>
         <p>
-          <b>Supervisor:</b> {project.supervisor || "-"}
+          <b>Supervisor:</b> {project?.supervisor || "-"}
         </p>
         <p>
-          <b>Team:</b> {project.team || "-"}
+          <b>Team:</b> {project?.team || "-"}
         </p>
       </div>
 
@@ -447,7 +510,7 @@ const ProjectDetails = () => {
             <input
               placeholder="Material"
               className="border p-1"
-              value={materialForm.name}
+              value={materialForm?.name}
               onChange={(e) =>
                 setMaterialForm({ ...materialForm, name: e.target.value })
               }
@@ -456,7 +519,7 @@ const ProjectDetails = () => {
               placeholder="Qty"
               type="number"
               className="border p-1"
-              value={materialForm.quantity}
+              value={materialForm?.quantity}
               onChange={(e) =>
                 setMaterialForm({ ...materialForm, quantity: e.target.value })
               }
@@ -465,7 +528,7 @@ const ProjectDetails = () => {
               placeholder="Price"
               type="number"
               className="border p-1"
-              value={materialForm.price}
+              value={materialForm?.price}
               onChange={(e) =>
                 setMaterialForm({ ...materialForm, price: e.target.value })
               }
@@ -479,7 +542,7 @@ const ProjectDetails = () => {
           </div>
         )}
 
-        {(project.materials || []).map((m) => (
+        {(project?.materials || []).map((m) => (
           <div key={m.id} className="border p-2">
             {m.name} — {m.quantity} × {m.price} = ${m.total}
           </div>
@@ -499,7 +562,7 @@ const ProjectDetails = () => {
             <input
               placeholder="Name"
               className="border p-1"
-              value={workerForm.name}
+              value={workerForm?.name}
               onChange={(e) =>
                 setWorkerForm({ ...workerForm, name: e.target.value })
               }
@@ -507,7 +570,7 @@ const ProjectDetails = () => {
             <input
               placeholder="Role"
               className="border p-1"
-              value={workerForm.role}
+              value={workerForm?.role}
               onChange={(e) =>
                 setWorkerForm({ ...workerForm, role: e.target.value })
               }
@@ -516,7 +579,7 @@ const ProjectDetails = () => {
               placeholder="Hours"
               type="number"
               className="border p-1"
-              value={workerForm.hours}
+              value={workerForm?.hours}
               onChange={(e) =>
                 setWorkerForm({ ...workerForm, hours: e.target.value })
               }
@@ -525,7 +588,7 @@ const ProjectDetails = () => {
               placeholder="Rate"
               type="number"
               className="border p-1"
-              value={workerForm.rate}
+              value={workerForm?.rate}
               onChange={(e) =>
                 setWorkerForm({ ...workerForm, rate: e.target.value })
               }
@@ -539,9 +602,9 @@ const ProjectDetails = () => {
           </div>
         )}
 
-        {(project.workers || []).map((w) => (
+        {(project?.workers || []).map((w) => (
           <div key={w.id} className="border p-2">
-            {w.name} — {w.role} — {w.hours}h × ${w.rate} = ${w.total}
+            {w?.name} — {w?.role} — {w?.hours}h × ${w?.rate} = ${w?.total}
           </div>
         ))}
 
@@ -559,7 +622,7 @@ const ProjectDetails = () => {
             <input
               placeholder="Task Name"
               className="border p-1"
-              value={taskForm.name}
+              value={taskForm?.name}
               onChange={(e) =>
                 setTaskForm({ ...taskForm, name: e.target.value })
               }
@@ -567,14 +630,14 @@ const ProjectDetails = () => {
             <input
               placeholder="Assigned To"
               className="border p-1"
-              value={taskForm.assigned}
+              value={taskForm?.assigned}
               onChange={(e) =>
                 setTaskForm({ ...taskForm, assigned: e.target.value })
               }
             />
             <select
               className="border p-1"
-              value={taskForm.status}
+              value={taskForm?.status}
               onChange={(e) =>
                 setTaskForm({ ...taskForm, status: e.target.value })
               }
@@ -589,9 +652,9 @@ const ProjectDetails = () => {
           </div>
         )}
 
-        {(project.tasks || []).map((t) => (
+        {(project?.tasks || []).map((t) => (
           <div key={t.id} className="border p-2">
-            {t.name} — {t.assigned} — {t.status}
+            {t?.name} — {t?.assigned} — {t?.status}
           </div>
         ))}
 
@@ -608,7 +671,7 @@ const ProjectDetails = () => {
         <p className="font-bold">Total Cost: ${materialCost + workerCost}</p>
         <p className="text-blue-600 font-bold">
           Profit (Budget - Internal Cost): $
-          {Number(project.budget || 0) - (materialCost + workerCost)}
+          {Number(project?.budget || 0) - (materialCost + workerCost)}
         </p>
       </div>
     </div>

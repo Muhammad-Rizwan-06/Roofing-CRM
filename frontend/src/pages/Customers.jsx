@@ -1,24 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import CustomersTable from "../components/customers/CustomersTable";
+import { useProjects } from "../context/ProjectsContext";
 
 const Customers = () => {
-  const [customers, setCustomers] = useState([]);
+  const { projects, loading, error, getAll } = useProjects();
 
-  // Helper to safely parse localStorage and ensure it's always an array
-  const safeParse = (key) => {
-    try {
-      const data = JSON.parse(localStorage.getItem(key));
-      if (Array.isArray(data)) return data;
-      if (data?.list && Array.isArray(data.list)) return data.list;
-      return [];
-    } catch {
-      return [];
-    }
-  };
+  // Fetch all projects on component mount
+  useEffect(() => {
+    getAll();
+  }, [getAll]);
 
-  const loadCustomers = () => {
-    const projects = safeParse("projects");
-
+  // Derive customers from projects
+  const customers = useMemo(() => {
     const map = new Map();
 
     projects.forEach((project) => {
@@ -36,22 +29,34 @@ const Customers = () => {
       }
     });
 
-    setCustomers(Array.from(map.values()));
-  };
+    return Array.from(map.values());
+  }, [projects]);
 
-  useEffect(() => {
-    loadCustomers();
+//   if (loading) {
+//     return (
+//       <div className="p-4">
+//         <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
+//           Loading customers...
+//         </div>
+//       </div>
+//     );
+//   }
 
-    // ✅ refresh when user comes back (conversion/project add/edit)
-    const onFocus = () => loadCustomers();
-    window.addEventListener("focus", onFocus);
-
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300">
+          Error: {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-2xl font-bold dark:text-white text-gray-800">Customers</h1>
+      <h1 className="text-2xl font-bold dark:text-white text-gray-800">
+        Customers
+      </h1>
       <CustomersTable customers={customers} />
     </div>
   );

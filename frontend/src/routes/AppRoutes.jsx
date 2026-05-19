@@ -195,7 +195,7 @@ const AppRoutes = () => {
                 }
               />
               <Route
-                path="/projects/:id"
+                path="/projects/:projectId"
                 element={
                   <AccessGuard allow="/projects">
                     <ProjectDetail />

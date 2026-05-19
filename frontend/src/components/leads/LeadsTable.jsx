@@ -71,7 +71,7 @@ const LeadsTable = ({ leads, onDelete, onConvert }) => {
                     </button>
 
                     <button
-                      onClick={() => onDelete(lead.id)}
+                      onClick={() => onDelete(lead.leadId)}
                       className="text-red-600 hover:underline"
                     >
                       Delete

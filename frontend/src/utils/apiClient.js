@@ -6,9 +6,7 @@
 
 import axios from "axios";
 
-const API_BASE_URL =
-  import.meta.env.REACT_APP_API_URL ||
-  "https://wi3bmu631i.execute-api.ap-south-1.amazonaws.com/production";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 class ApiClient {
   constructor(baseURL = API_BASE_URL) {

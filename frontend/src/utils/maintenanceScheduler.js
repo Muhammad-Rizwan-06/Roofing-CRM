@@ -1,217 +1,223 @@
-import {
-  addMonths,
-  getMaintenanceContracts,
-  getMaintenanceVisits,
-  normalizeDateKey,
-  saveMaintenanceContracts,
-  saveMaintenanceVisits,
-  todayKey,
-  nextSeq,
-  lsGet,
-  lsSet,
-} from "./maintenanceStore";
+import { addMonths, normalizeDateKey, todayKey } from "./maintenanceStore";
 
-const INVOICES_KEY = "invoices";
-const INSPECTIONS_KEY = "inspections";
-
-const nextInvoiceNo = (invoices) => {
-  const prefix = "INV";
-  const max = (invoices || []).reduce((m, x) => {
-    const n = Number(String(x.invoiceNo || "").replace(prefix + "-", "")) || 0;
-    return Math.max(m, n);
-  }, 0);
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-};
-
-const findInspectionByVisit = (inspections, visit) => {
-  if (!visit) return null;
-  if (visit.inspectionId) {
-    const byId = inspections.find((i) => Number(i.id) === Number(visit.inspectionId));
-    if (byId) return byId;
+export async function runMaintenanceScheduler({
+  contracts = [],
+  visits = [],
+  addVisit,
+  addContractInspection,
+  updateContract,
+  updateVisit, // ✅ added
+  nowKey,
+} = {}) {
+  if (!addVisit || !addContractInspection || !updateContract || !updateVisit) {
+    console.warn("⚠️ Scheduler missing API functions, skipping generation");
+    return { ok: false, message: "Missing required API functions" };
   }
-  return inspections.find((i) => String(i.maintenanceVisitId) === String(visit.id)) || null;
-};
 
-const createInspectionForVisit = ({ inspections, visit, contract }) => {
-  const id = Date.now() + Math.floor(Math.random() * 1000);
-
-  const addr = contract?.propertyAddress?.line1 || visit?.propertyAddress?.line1 || "";
-  const plan = contract?.planName || visit?.planName || "Maintenance";
-
-  const rec = {
-    id,
-    projectId: contract?.projectId ?? visit?.projectId ?? null,
-    projectName:
-      contract?.projectName ||
-      visit?.projectName ||
-      `(Maintenance) ${contract?.customerName || visit?.customerName || ""}`.trim(),
-    client: contract?.customerName || visit?.customerName || "",
-    date: visit.scheduledDate,
-    inspector: "",
-    status: "Scheduled",
-    notes: `Maintenance Visit ${visit.visitNo || ""} • ${plan}${addr ? ` • ${addr}` : ""}`.trim(),
-    createdAt: new Date().toISOString(),
-
-    // link-back (safe extra fields)
-    maintenanceContractId: contract?.id ?? visit?.contractId ?? null,
-    maintenanceVisitId: visit.id,
-    maintenanceVisitNo: visit.visitNo || "",
-  };
-
-  inspections.push(rec);
-  visit.inspectionId = id;
-  return id;
-};
-
-export function runMaintenanceScheduler({ nowKey } = {}) {
   const now = normalizeDateKey(nowKey || todayKey());
-
-  const contracts = getMaintenanceContracts();
-  const visits = getMaintenanceVisits();
-  const invoices = lsGet(INVOICES_KEY, []);
-  const inspections = lsGet(INSPECTIONS_KEY, []);
-
-  let contractsChanged = false;
-  let visitsChanged = false;
-  let invoicesChanged = false;
-  let inspectionsChanged = false;
+  const results = {
+    visitsCreated: [],
+    inspectionsCreated: [],
+    contractsUpdated: [],
+    contractsExpired: [],
+    errors: [],
+  };
 
   const hasVisit = (contractId, scheduledDate) =>
     visits.some(
       (v) =>
         String(v.contractId) === String(contractId) &&
-        String(v.scheduledDate) === String(scheduledDate)
+        String(v.scheduledDate) === String(scheduledDate),
     );
 
-  // 1) Generate missing visits (and inspections)
+  // 1) Auto-expire contracts whose endDate has passed
   for (const c of contracts) {
-    const status = String(c.status || "Active");
-
-    // auto-expire if endDate passed
-    if (c.endDate && String(c.endDate) < now && status === "Active") {
-      c.status = "Expired";
-      contractsChanged = true;
+    if (c.endDate && String(c.endDate) < now && String(c.status) === "Active") {
+      try {
+        const result = await updateContract(c.contractId, {
+          status: "Expired",
+        });
+        if (result.ok) {
+          c.status = "Expired";
+          results.contractsExpired.push(c.contractId);
+        } else {
+          results.errors.push(
+            `Failed to expire contract ${c.contractNo || c.contractId}`,
+          );
+        }
+      } catch (err) {
+        results.errors.push(`Error expiring contract: ${err.message}`);
+      }
     }
+  }
 
+  // 2) Generate missing visits and linked inspections
+  for (const c of contracts) {
     if (String(c.status) !== "Active") continue;
 
     const freq = Number(c.frequencyMonths || 12) || 12;
-
     let nextRun = normalizeDateKey(c.nextRunDate || c.startDate || now);
+    let nextRunChanged = false;
 
     while (nextRun <= now) {
       if (c.endDate && String(nextRun) > String(c.endDate)) break;
 
-      if (!hasVisit(c.id, nextRun)) {
-        const visitId = Date.now() + Math.floor(Math.random() * 1000);
-
-        const newVisit = {
-          id: visitId,
-          visitNo: nextSeq("MV", visits, "visitNo"),
-          contractId: c.id,
+      if (!hasVisit(c.contractId, nextRun)) {
+        const visitData = {
           scheduledDate: nextRun,
           status: "Scheduled",
-
-          // snapshot
           customerName: c.customerName || "",
           customerEmail: c.customerEmail || "",
           planName: c.planName || "Maintenance",
           propertyAddress: c.propertyAddress || {},
-
-          projectId: c.projectId ?? null,
+          projectId: c.projectId || null,
           projectName: c.projectName || "",
-
+          contractNo: c.contractNo || "",
           invoiceId: null,
           invoiceNo: null,
-
           inspectionId: null,
-
-          createdAt: new Date().toISOString(),
-          completedAt: null,
           notes: "",
         };
 
-        // Optional auto-invoice
-        if (c.autoInvoice && Number(c.price || 0) > 0) {
-          const invoiceId = Date.now() + Math.floor(Math.random() * 1000);
-          const invoiceNo = nextInvoiceNo(invoices);
+        try {
+          const visitResult = await addVisit(c.contractId, visitData);
 
-          const inv = {
-            id: invoiceId,
-            invoiceNo,
-            projectId: c.projectId ?? null,
-            projectName: c.projectName || "",
-            customer: c.customerName || "",
-            issueDate: nextRun,
-            dueDate: nextRun,
-            taxRate: 0,
-            items: [
-              {
-                description: `${c.planName || "Maintenance"} (Visit)`,
-                qty: 1,
-                unitPrice: Number(c.price || 0),
-              },
-            ],
-            amountPaid: 0,
-            status: "Unpaid",
-          };
+          if (visitResult.ok && visitResult.data) {
+            const newVisit = visitResult.data;
+            results.visitsCreated.push(newVisit);
 
-          invoices.push(inv);
-          invoicesChanged = true;
+            const addr = c.propertyAddress?.line1 || "";
+            const plan = c.planName || "Maintenance";
 
-          newVisit.invoiceId = invoiceId;
-          newVisit.invoiceNo = invoiceNo;
+            const inspectionData = {
+              visitId: newVisit.visitId,
+              visitNo: newVisit.visitNo || "",
+              projectId: c.projectId || null,
+              projectName: c.projectName || "",
+              client: c.customerName || "",
+              date: nextRun,
+              inspector: "",
+              status: "Scheduled",
+              notes:
+                `Maintenance Visit ${newVisit.visitNo || ""} • ${plan}${addr ? ` • ${addr}` : ""}`.trim(),
+            };
+
+            try {
+              const inspectionResult = await addContractInspection(
+                c.contractId,
+                inspectionData,
+              );
+
+              if (inspectionResult.ok && inspectionResult.data) {
+                results.inspectionsCreated.push(inspectionResult.data);
+
+                // ✅ update visit with inspectionId on backend
+                const rawVisitId = newVisit.visitId.replace("VISIT#", "");
+                await updateVisit(c.contractId, rawVisitId, {
+                  inspectionId: inspectionResult.data.inspectionId,
+                });
+
+                // ✅ update local visit object so backfill skips it
+                newVisit.inspectionId = inspectionResult.data.inspectionId;
+              } else {
+                results.errors.push(
+                  `Failed to create inspection for visit ${newVisit.visitNo}`,
+                );
+              }
+            } catch (err) {
+              results.errors.push(`Error creating inspection: ${err.message}`);
+            }
+
+            // ✅ push after inspectionId is set
+            visits.push(newVisit);
+          } else {
+            results.errors.push(
+              `Failed to create visit for contract ${c.contractNo || c.contractId}`,
+            );
+          }
+        } catch (err) {
+          results.errors.push(`Error creating visit: ${err.message}`);
         }
-
-        // ✅ Create matching Inspection record (Scheduled)
-        createInspectionForVisit({ inspections, visit: newVisit, contract: c });
-        inspectionsChanged = true;
-
-        visits.push(newVisit);
-        visitsChanged = true;
       }
 
       nextRun = addMonths(nextRun, freq);
+      nextRunChanged = true;
     }
 
-    if (String(c.nextRunDate || "") !== String(nextRun)) {
-      c.nextRunDate = nextRun;
-      c.updatedAt = new Date().toISOString();
-      contractsChanged = true;
-    }
-  }
-
-  // 2) Backfill inspections for older visits (created before this Step 2)
-  for (const v of visits) {
-    const status = String(v.status || "Scheduled");
-    if (status === "Cancelled") continue;
-
-    const existing = findInspectionByVisit(inspections, v);
-    if (existing) {
-      // ensure visit has inspectionId for reliable linking
-      if (!v.inspectionId) {
-        v.inspectionId = existing.id;
-        visitsChanged = true;
+    // Update contract's nextRunDate if it changed
+    if (nextRunChanged && String(c.nextRunDate || "") !== String(nextRun)) {
+      try {
+        const updateResult = await updateContract(c.contractId, {
+          nextRunDate: nextRun,
+        });
+        if (updateResult.ok) {
+          c.nextRunDate = nextRun;
+          results.contractsUpdated.push(c.contractId);
+        } else {
+          results.errors.push(
+            `Failed to update nextRunDate for contract ${c.contractNo}`,
+          );
+        }
+      } catch (err) {
+        results.errors.push(
+          `Error updating contract nextRunDate: ${err.message}`,
+        );
       }
-      continue;
     }
-
-    const c = contracts.find((x) => String(x.id) === String(v.contractId)) || null;
-    createInspectionForVisit({ inspections, visit: v, contract: c });
-    inspectionsChanged = true;
-    visitsChanged = true;
   }
 
-  if (contractsChanged) saveMaintenanceContracts(contracts);
-  if (visitsChanged) saveMaintenanceVisits(visits);
-  if (invoicesChanged) lsSet(INVOICES_KEY, invoices);
-  if (inspectionsChanged) lsSet(INSPECTIONS_KEY, inspections);
+  // 3) Backfill — create inspections for older visits that have none
+  for (const v of visits) {
+    if (String(v.status) === "Cancelled") continue;
+    if (v.inspectionId) continue; // ✅ skip if already has one
+
+    const c =
+      contracts.find((x) => String(x.contractId) === String(v.contractId)) ||
+      null;
+    const addr = c?.propertyAddress?.line1 || v.propertyAddress?.line1 || "";
+    const plan = c?.planName || v.planName || "Maintenance";
+    const contractId = c?.contractId || v.contractId;
+
+    if (!contractId) continue;
+
+    const inspectionData = {
+      visitId: v.visitId,
+      visitNo: v.visitNo || "",
+      projectId: c?.projectId || v.projectId || null,
+      projectName: c?.projectName || v.projectName || "",
+      client: c?.customerName || v.customerName || "",
+      date: v.scheduledDate,
+      inspector: "",
+      status: "Scheduled",
+      notes:
+        `Maintenance Visit ${v.visitNo || ""} • ${plan}${addr ? ` • ${addr}` : ""}`.trim(),
+    };
+
+    try {
+      const result = await addContractInspection(contractId, inspectionData);
+      if (result.ok && result.data) {
+        results.inspectionsCreated.push(result.data);
+
+        // ✅ update visit with inspectionId on backend
+        const rawVisitId = v.visitId.replace("VISIT#", "");
+        await updateVisit(contractId, rawVisitId, {
+          inspectionId: result.data.inspectionId,
+        });
+
+        // ✅ update local visit so it won't be processed again
+        v.inspectionId = result.data.inspectionId;
+      } else {
+        results.errors.push(
+          `Failed to backfill inspection for visit ${v.visitNo}`,
+        );
+      }
+    } catch (err) {
+      results.errors.push(`Error backfilling inspection: ${err.message}`);
+    }
+  }
 
   return {
-    now,
-    contractsChanged,
-    visitsChanged,
-    invoicesChanged,
-    inspectionsChanged,
+    ok: true,
+    ...results,
   };
 }

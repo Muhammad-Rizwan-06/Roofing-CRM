@@ -1,77 +1,79 @@
 // src/pages/LeadsPipeline.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import AddLeadModal from "../components/leads/AddLeadModal";
-import { leadsData } from "../data/mockData";
 import {
   LEAD_PIPELINE_STAGES,
   STAGE_PROBABILITY,
   formatMoney,
 } from "../constants/leadPipeline";
-
-const ensureLeadDefaults = (lead) => ({
-  id: lead.id ?? Date.now(),
-  name: lead.name ?? "",
-  email: lead.email ?? "",
-  phone: lead.phone ?? "",
-  status: lead.status ?? "New", // pipeline stage
-  estimatedValue: Number(lead.estimatedValue ?? 0), // optional industry field
-  createdAt: lead.createdAt ?? new Date().toISOString(),
-  updatedAt: lead.updatedAt ?? new Date().toISOString(),
-});
+import { useLeads } from "../context/LeadContext";
+import { useProjects } from "../context/ProjectsContext";
 
 const LeadsPipeline = () => {
-  const [leads, setLeads] = useState(() => {
-    const storedLeads = localStorage.getItem("leads");
-    let base = storedLeads ? JSON.parse(storedLeads) : leadsData;
-    // Handle old format with .list property
-    if (!Array.isArray(base) && base?.list) base = base.list;
-    return (base || []).map(ensureLeadDefaults);
-  });
-
+  const { leads, loading, error, getAll, createLead, updateLead: updateLeadAPI, deleteLead: deleteLeadAPI } = useLeads();
+  const { createProject } = useProjects();
   const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState(null);
 
+  // Fetch leads on mount
   useEffect(() => {
-    localStorage.setItem("leads", JSON.stringify(leads));
-  }, [leads]);
+    getAll();
+  }, [getAll]);
 
-  const addLead = (newLead) => {
-    const leadToAdd = ensureLeadDefaults({
+  // Auto-dismiss message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const addLead = async (newLead) => {
+    const result = await createLead({
       ...newLead,
-      id: Date.now(),
       status: newLead.status || "New",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
 
-    setLeads((prev) => [...prev, leadToAdd]);
+    if (result.ok) {
+      setMessage({ type: "success", text: result.message || "Lead created successfully" });
+      setOpen(false);
+    } else {
+      setMessage({ type: "error", text: result.message || "Failed to create lead" });
+    }
   };
 
-  const deleteLead = (id) => {
-    setLeads((prev) => prev.filter((l) => l.id !== id));
+  const deleteLead = async (leadId) => {
+    const confirmed = window.confirm("Are you sure you want to delete this lead?");
+    if (!confirmed) return;
+
+    const result = await deleteLeadAPI(leadId);
+    if (result.ok) {
+      setMessage({ type: "success", text: result.message || "Lead deleted successfully" });
+    } else {
+      setMessage({ type: "error", text: result.message || "Failed to delete lead" });
+    }
   };
 
-  const updateLead = (id, updates) => {
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              ...updates,
-              updatedAt: new Date().toISOString(),
-            }
-          : l,
-      ),
-    );
+  const updateLead = async (leadId, updates) => {
+    const result = await updateLeadAPI(leadId, {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (!result.ok) {
+      setMessage({ type: "error", text: result.message || "Failed to update lead" });
+    }
   };
 
   // Convert lead -> project (recommended only when Won)
-  const convertLead = (lead) => {
+  const convertLead = async (lead) => {
     if (lead.status !== "Won") {
       alert('Convert is recommended only when stage is "Won".');
       return;
     }
 
-    const existingProjects = JSON.parse(localStorage.getItem("projects")) || [];
 
     const newProject = {
       id: Date.now(),
@@ -82,12 +84,10 @@ const LeadsPipeline = () => {
       source: "Lead Conversion",
     };
 
-    localStorage.setItem(
-      "projects",
-      JSON.stringify([...existingProjects, newProject]),
-    );
+   await createProject(newProject); // Create project in API
 
-    setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+    // Delete lead from API
+    await deleteLeadAPI(lead.leadId);
     alert(`Lead "${lead.name}" converted to Project`);
   };
 
@@ -124,14 +124,16 @@ const LeadsPipeline = () => {
 
   // ---------- Drag & Drop ----------
   const onDragStart = (e, leadId) => {
-    e.dataTransfer.setData("text/plain", String(leadId));
+    e.dataTransfer.setData("text/plain", leadId);
   };
 
-  const onDropToStage = (e, stage) => {
+  const onDropToStage = async (e, stage) => {
     e.preventDefault();
-    const leadId = Number(e.dataTransfer.getData("text/plain"));
-    if (!leadId) return;
-    updateLead(leadId, { status: stage });
+    const leadIdString = e.dataTransfer.getData("text/plain");
+    if (!leadIdString) return;
+    
+    const leadId = isNaN(leadIdString) ? leadIdString : Number(leadIdString);
+    await updateLead(leadId, { status: stage, stage: stage }); // Update both status and stage for backward compatibility
   };
 
   return (
@@ -149,11 +151,30 @@ const LeadsPipeline = () => {
 
         <button
           onClick={() => setOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+          disabled={loading}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition"
         >
           + Add Lead
         </button>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+          Error: {error}
+        </div>
+      )}
+
+      {message && (
+        <div
+          className={`p-4 rounded-lg ${
+            message.type === "success"
+              ? "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800"
+              : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
 
       {/* Summary (industry level) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -194,10 +215,11 @@ const LeadsPipeline = () => {
 
       {/* Kanban Board */}
       <div className="overflow-x-auto">
-        <div className="min-w-[1100px] grid grid-cols-6 gap-4">
-          {LEAD_PIPELINE_STAGES.map((stage) => (
+        <div className="min-w-275 grid grid-cols-6 gap-4">
+          {LEAD_PIPELINE_STAGES.map((stage, i) => (
+            // ✅ Keep it clean — stage column only needs dragOver and onDrop
             <div
-              key={stage}
+              key={i}
               className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-3 border border-gray-200 dark:border-gray-800"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => onDropToStage(e, stage)}
@@ -217,9 +239,9 @@ const LeadsPipeline = () => {
 
                   return (
                     <div
-                      key={lead.id}
+                      key={lead.leadId}
                       draggable
-                      onDragStart={(e) => onDragStart(e, lead.id)}
+                      onDragStart={(e) => onDragStart(e, lead.leadId)}
                       className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 cursor-grab active:cursor-grabbing"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -233,7 +255,7 @@ const LeadsPipeline = () => {
                         </div>
 
                         <button
-                          onClick={() => deleteLead(lead.id)}
+                          onClick={() => deleteLead(lead.leadId)}
                           className="text-xs text-red-600 hover:underline"
                         >
                           Delete
@@ -249,7 +271,7 @@ const LeadsPipeline = () => {
                           type="number"
                           value={lead.estimatedValue || 0}
                           onChange={(e) =>
-                            updateLead(lead.id, {
+                            updateLead(lead.leadId, {
                               estimatedValue: Number(e.target.value || 0),
                             })
                           }
@@ -266,7 +288,7 @@ const LeadsPipeline = () => {
                         <select
                           value={lead.status}
                           onChange={(e) =>
-                            updateLead(lead.id, { status: e.target.value })
+                            updateLead(lead.leadId, { status: e.target.value })
                           }
                           className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white"
                         >

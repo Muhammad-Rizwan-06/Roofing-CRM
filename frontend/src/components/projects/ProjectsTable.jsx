@@ -37,7 +37,7 @@ const ProjectsTable = ({
 
             return (
               <tr
-                key={project.id}
+                key={project.projectId}
                 className="border-t hover:bg-gray-800 transition"
               >
                 <td className="p-3">{project.name}</td>
@@ -55,7 +55,7 @@ const ProjectsTable = ({
                       <select
                         value={project.status || "Pending"}
                         onChange={(e) =>
-                          onStatusChange?.(project.id, e.target.value)
+                          onStatusChange?.(project.projectId, e.target.value)
                         }
                         className="border rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-900"
                         title="Change project status"
@@ -74,7 +74,7 @@ const ProjectsTable = ({
 
                 <td className="p-3 space-x-3">
                   <Link
-                    to={`${basePath}/${project.id}`}
+                    to={`${basePath}/${project.projectId}`}
                     className="text-green-600 font-medium"
                   >
                     View
@@ -90,7 +90,7 @@ const ProjectsTable = ({
                       </button>
 
                       <button
-                        onClick={() => onDelete?.(project.id)}
+                        onClick={() => onDelete?.(project.projectId)}
                         className="text-red-500 font-medium"
                       >
                         Delete

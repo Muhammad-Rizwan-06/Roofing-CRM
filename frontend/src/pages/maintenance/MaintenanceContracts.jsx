@@ -1,55 +1,68 @@
-import React, { useMemo, useState } from "react";
-import {
-  getMaintenanceContracts,
-  saveMaintenanceContracts,
-  getMaintenanceVisits,
-  saveMaintenanceVisits,
-  nextSeq,
-  todayKey,
-  normalizeDateKey,
-} from "../../utils/maintenanceStore";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useContracts } from "../../context/ContractContext";
+import { useProjects } from "../../context/ProjectsContext";
 import { runMaintenanceScheduler } from "../../utils/maintenanceScheduler";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm = () => ({
   planName: "Annual Roof Inspection",
   frequencyMonths: 12,
   startDate: todayKey(),
   endDate: "",
-
+  nextRunDate: todayKey(),
   customerName: "",
   customerEmail: "",
-
   projectId: "",
   projectName: "",
-
   propertyLine1: "",
   propertyLine2: "",
   city: "",
   state: "",
   zip: "",
-
   price: 0,
   autoInvoice: false,
-
   status: "Active",
-  nextRunDate: todayKey(),
 });
 
 export default function MaintenanceContracts() {
-  const [contracts, setContracts] = useState(() => getMaintenanceContracts());
+  const {
+    contracts,
+    loading,
+    error,
+    getAllContracts,
+    getAllVisits,
+    createContract,
+    updateContract,
+    deleteContract,
+    addVisit,
+    updateVisit,
+    deleteVisit,
+    // inspections
+    addContractInspection, // ✅
+  } = useContracts();
+
+  const { projects, getAll } = useProjects(); // ✅ removed addInspection
+
+  const [pageLoading, setPageLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(() => emptyForm());
 
-  const projects = useMemo(() => {
-    return JSON.parse(localStorage.getItem("projects")) || [];
-  }, []);
+  useEffect(() => {
+    const init = async () => {
+      await Promise.all([getAllContracts(), getAll()]);
+      setPageLoading(false);
+    };
+    init();
+  }, [getAllContracts, getAll]);
 
   const totalActive = useMemo(
-    () => contracts.filter((c) => String(c.status) === "Active").length,
-    [contracts]
+    () => contracts.filter((c) => c.status === "Active").length,
+    [contracts],
   );
 
   const reset = () => {
@@ -63,56 +76,52 @@ export default function MaintenanceContracts() {
   };
 
   const openEdit = (c) => {
-    setEditId(c.id);
+    setEditId(c.contractId);
     setForm({
       planName: c.planName || "Annual Roof Inspection",
       frequencyMonths: Number(c.frequencyMonths || 12),
-      startDate: normalizeDateKey(c.startDate || todayKey()),
+      startDate: c.startDate || todayKey(),
       endDate: c.endDate || "",
-
+      nextRunDate: c.nextRunDate || c.startDate || todayKey(),
       customerName: c.customerName || "",
       customerEmail: c.customerEmail || "",
-
-      projectId: c.projectId != null ? String(c.projectId) : "",
+      projectId: c.projectId ?? "",
       projectName: c.projectName || "",
-
       propertyLine1: c.propertyAddress?.line1 || "",
       propertyLine2: c.propertyAddress?.line2 || "",
       city: c.propertyAddress?.city || "",
       state: c.propertyAddress?.state || "",
       zip: c.propertyAddress?.zip || "",
-
       price: Number(c.price || 0),
       autoInvoice: Boolean(c.autoInvoice),
-
       status: c.status || "Active",
-      nextRunDate: normalizeDateKey(c.nextRunDate || c.startDate || todayKey()),
     });
     setOpen(true);
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
 
     if (!form.customerName.trim()) return alert("Customer name required");
     if (!form.customerEmail.trim()) return alert("Customer email required");
-    if (!form.propertyLine1.trim()) return alert("Property address line 1 required");
+    if (!form.propertyLine1.trim())
+      return alert("Property address line 1 required");
     if (!form.startDate) return alert("Start date required");
 
-    const project = projects.find((p) => String(p.id) === String(form.projectId));
+    const selectedProject = projects.find(
+      (p) => p.projectId === form.projectId,
+    );
 
-    const payloadBase = {
+    const payload = {
       planName: form.planName.trim() || "Maintenance",
       frequencyMonths: Number(form.frequencyMonths || 12),
-      startDate: normalizeDateKey(form.startDate),
-      endDate: form.endDate ? normalizeDateKey(form.endDate) : "",
-
+      startDate: form.startDate,
+      endDate: form.endDate || "",
+      nextRunDate: form.nextRunDate || form.startDate,
       customerName: form.customerName.trim(),
       customerEmail: form.customerEmail.trim().toLowerCase(),
-
-      projectId: form.projectId ? Number(form.projectId) : null,
-      projectName: project?.name || form.projectName || "",
-
+      projectId: form.projectId || null,
+      projectName: selectedProject?.name?.trim() || form.projectName || "",
       propertyAddress: {
         line1: form.propertyLine1.trim(),
         line2: form.propertyLine2.trim(),
@@ -120,52 +129,49 @@ export default function MaintenanceContracts() {
         state: form.state.trim(),
         zip: form.zip.trim(),
       },
-
       price: Number(form.price || 0),
       autoInvoice: Boolean(form.autoInvoice),
-
       status: form.status,
-      nextRunDate: normalizeDateKey(form.nextRunDate || form.startDate),
-      updatedAt: new Date().toISOString(),
     };
 
-    let nextContracts;
+    setSubmitting(true);
+
+    let result;
     if (editId) {
-      nextContracts = contracts.map((c) =>
-        c.id === editId ? { ...c, ...payloadBase } : c
-      );
+      result = await updateContract(editId, payload);
     } else {
-      const newContract = {
-        id: Date.now(),
-        contractNo: nextSeq("MC", contracts, "contractNo"),
-        ...payloadBase,
-        createdAt: new Date().toISOString(),
-      };
-      nextContracts = [newContract, ...contracts];
+      result = await createContract(payload);
     }
 
-    saveMaintenanceContracts(nextContracts);
-    setContracts(nextContracts);
+    setSubmitting(false);
 
-    // generate visits immediately if startDate <= today
-    runMaintenanceScheduler();
+    if (!result.ok) return alert(result.message);
+
+    const currentVisits = editId ? (await getAllVisits()).data || [] : [];
+
+    await runMaintenanceScheduler({
+      contracts: editId
+        ? contracts.map((c) => (c.contractId === editId ? result.data : c))
+        : [...contracts, result.data],
+      visits: currentVisits,
+      addVisit,
+      addContractInspection, // ✅
+      updateVisit,
+      updateContract,
+    });
 
     setOpen(false);
     reset();
   };
 
-  const remove = (id) => {
-    const ok = confirm("Delete this maintenance contract? Related visits will also be deleted.");
-    if (!ok) return;
+  const remove = async (contractId) => {
+    const confirmed = confirm(
+      "Delete this maintenance contract? Related visits will also be deleted.",
+    );
+    if (!confirmed) return;
 
-    const nextContracts = contracts.filter((c) => c.id !== id);
-    saveMaintenanceContracts(nextContracts);
-    setContracts(nextContracts);
-
-    // cascade delete visits
-    const visits = getMaintenanceVisits();
-    const nextVisits = visits.filter((v) => Number(v.contractId) !== Number(id));
-    saveMaintenanceVisits(nextVisits);
+    const result = await deleteContract(contractId);
+    if (!result.ok) alert(result.message);
   };
 
   return (
@@ -183,7 +189,9 @@ export default function MaintenanceContracts() {
         <div className="flex gap-2 items-center">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
             <p className="text-xs text-gray-500 dark:text-gray-300">Active</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{totalActive}</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">
+              {totalActive}
+            </p>
           </div>
 
           <button
@@ -194,6 +202,12 @@ export default function MaintenanceContracts() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300">
+          Error: {error}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
         <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
@@ -216,10 +230,15 @@ export default function MaintenanceContracts() {
 
           <tbody>
             {contracts.map((c) => (
-              <tr key={c.id} className="border-t border-gray-100 dark:border-gray-800">
+              <tr
+                key={c.contractId}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
                 <td className="p-3 font-medium">{c.contractNo || "—"}</td>
                 <td className="p-3">
-                  <div className="font-medium text-gray-800 dark:text-gray-100">{c.customerName}</div>
+                  <div className="font-medium text-gray-800 dark:text-gray-100">
+                    {c.customerName}
+                  </div>
                   <div className="text-xs text-gray-500">{c.customerEmail}</div>
                 </td>
                 <td className="p-3 text-gray-700 dark:text-gray-200">
@@ -228,14 +247,26 @@ export default function MaintenanceContracts() {
                 <td className="p-3 text-gray-700 dark:text-gray-200">
                   {c.planName} • {c.frequencyMonths}mo
                 </td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{c.nextRunDate || "—"}</td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{money(c.price)}</td>
-                <td className="p-3 text-gray-700 dark:text-gray-200">{c.status}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {c.nextRunDate || "—"}
+                </td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {money(c.price)}
+                </td>
+                <td className="p-3 text-gray-700 dark:text-gray-200">
+                  {c.status}
+                </td>
                 <td className="p-3 text-right space-x-3">
-                  <button className="text-blue-600 hover:underline" onClick={() => openEdit(c)}>
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => openEdit(c)}
+                  >
                     Edit
                   </button>
-                  <button className="text-red-600 hover:underline" onClick={() => remove(c.id)}>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => remove(c.contractId)}
+                  >
                     Delete
                   </button>
                 </td>
@@ -244,7 +275,10 @@ export default function MaintenanceContracts() {
 
             {contracts.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={8}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No maintenance contracts yet.
                 </td>
               </tr>
@@ -263,7 +297,8 @@ export default function MaintenanceContracts() {
                   {editId ? "Edit Contract" : "New Contract"}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
-                  Creates recurring visits automatically based on frequency + next date.
+                  Creates recurring visits automatically based on frequency +
+                  next date.
                 </p>
               </div>
 
@@ -278,19 +313,29 @@ export default function MaintenanceContracts() {
               </button>
             </div>
 
-            <form onSubmit={submit} className="p-4 space-y-4">
+            <form
+              onSubmit={submit}
+              className="p-4 space-y-4 overflow-y-auto max-h-[75vh]"
+            >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="Plan Name (e.g. Annual Roof Inspection)"
                   value={form.planName}
-                  onChange={(e) => setForm((p) => ({ ...p, planName: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, planName: e.target.value }))
+                  }
                 />
 
                 <select
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.frequencyMonths}
-                  onChange={(e) => setForm((p) => ({ ...p, frequencyMonths: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      frequencyMonths: Number(e.target.value),
+                    }))
+                  }
                 >
                   <option value={12}>Every 12 months (Annual)</option>
                   <option value={6}>Every 6 months (Semi-Annual)</option>
@@ -300,7 +345,9 @@ export default function MaintenanceContracts() {
                 <select
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.status}
-                  onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, status: e.target.value }))
+                  }
                 >
                   <option value="Active">Active</option>
                   <option value="Paused">Paused</option>
@@ -312,21 +359,27 @@ export default function MaintenanceContracts() {
                   type="date"
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.startDate}
-                  onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, startDate: e.target.value }))
+                  }
                 />
 
                 <input
                   type="date"
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.endDate}
-                  onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, endDate: e.target.value }))
+                  }
                 />
 
                 <input
                   type="date"
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.nextRunDate}
-                  onChange={(e) => setForm((p) => ({ ...p, nextRunDate: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, nextRunDate: e.target.value }))
+                  }
                   title="Next scheduled visit date"
                 />
 
@@ -334,24 +387,30 @@ export default function MaintenanceContracts() {
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="Customer Name"
                   value={form.customerName}
-                  onChange={(e) => setForm((p) => ({ ...p, customerName: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, customerName: e.target.value }))
+                  }
                 />
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="Customer Email (portal)"
+                  placeholder="Customer Email"
                   value={form.customerEmail}
-                  onChange={(e) => setForm((p) => ({ ...p, customerEmail: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, customerEmail: e.target.value }))
+                  }
                 />
 
                 <select
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.projectId}
-                  onChange={(e) => setForm((p) => ({ ...p, projectId: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, projectId: e.target.value }))
+                  }
                 >
                   <option value="">(Optional) Link a Project</option>
                   {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
+                    <option key={p.projectId} value={p.projectId}>
+                      {p.name?.trim()}
                     </option>
                   ))}
                 </select>
@@ -360,32 +419,42 @@ export default function MaintenanceContracts() {
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white md:col-span-3"
                   placeholder="Property Address Line 1"
                   value={form.propertyLine1}
-                  onChange={(e) => setForm((p) => ({ ...p, propertyLine1: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, propertyLine1: e.target.value }))
+                  }
                 />
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white md:col-span-3"
                   placeholder="Property Address Line 2 (optional)"
                   value={form.propertyLine2}
-                  onChange={(e) => setForm((p) => ({ ...p, propertyLine2: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, propertyLine2: e.target.value }))
+                  }
                 />
 
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="City"
                   value={form.city}
-                  onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, city: e.target.value }))
+                  }
                 />
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="State"
                   value={form.state}
-                  onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, state: e.target.value }))
+                  }
                 />
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="ZIP"
                   value={form.zip}
-                  onChange={(e) => setForm((p) => ({ ...p, zip: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, zip: e.target.value }))
+                  }
                 />
 
                 <input
@@ -393,14 +462,18 @@ export default function MaintenanceContracts() {
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   placeholder="Price per Visit (optional)"
                   value={form.price}
-                  onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, price: e.target.value }))
+                  }
                 />
 
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                   <input
                     type="checkbox"
                     checked={form.autoInvoice}
-                    onChange={(e) => setForm((p) => ({ ...p, autoInvoice: e.target.checked }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, autoInvoice: e.target.checked }))
+                    }
                   />
                   Auto-create invoice for each visit
                 </label>
@@ -417,13 +490,21 @@ export default function MaintenanceContracts() {
                 >
                   Cancel
                 </button>
-                <button className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
-                  {editId ? "Save Changes" : "Create Contract"}
+                <button
+                  disabled={submitting}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {submitting
+                    ? "Saving..."
+                    : editId
+                      ? "Save Changes"
+                      : "Create Contract"}
                 </button>
               </div>
 
               <p className="text-xs text-gray-500">
-                Note: Visits are generated automatically when the app loads (scheduler).
+                Note: Visits are generated automatically when the app loads
+                (scheduler).
               </p>
             </form>
           </div>

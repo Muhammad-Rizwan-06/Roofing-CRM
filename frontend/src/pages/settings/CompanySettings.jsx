@@ -104,12 +104,6 @@ const CompanySettings = () => {
         </div>
       )}
 
-      {/* {loading && (
-        <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-          Loading company data...
-        </div>
-      )} */}
-
       {form && (
         <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow border border-gray-100 dark:border-gray-800 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

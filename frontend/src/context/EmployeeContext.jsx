@@ -46,13 +46,6 @@ export const EmployeeProvider = ({ children }) => {
       const newEmployee = response.user;
       console.log("New employee created:", newEmployee);
 
-
-    //   const newEmployee = {
-    //     employeeId: Date.now().toString(),
-    //     ...employeeData,
-    //     createdAt: new Date().toISOString(),
-    //   };
-
       setEmployees((prevEmployees) => [...prevEmployees, newEmployee]);
       return newEmployee;
     } catch (err) {

@@ -1,68 +1,109 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  getMaintenanceContracts,
-  getMaintenanceVisits,
-  saveMaintenanceVisits,
-  lsGet,
-  lsSet,
-} from "../../utils/maintenanceStore";
+import { useContracts } from "../../context/ContractContext";
+import { useProjects } from "../../context/ProjectsContext";
 import { runMaintenanceScheduler } from "../../utils/maintenanceScheduler";
 
-const INSPECTIONS_KEY = "inspections";
-
 export default function MaintenanceVisits() {
-  const [contracts] = useState(() => getMaintenanceContracts());
-  const [visits, setVisits] = useState(() => getMaintenanceVisits());
+  const {
+    contracts,
+    getAllContracts,
+    getAllVisits,
+    updateVisit,
+    addVisit,
+    updateContract,
+    addContractInspection,
+    updateContractInspection,
+  } = useContracts();
 
+  const { getAll: getAllProjects } = useProjects();
+
+  const [visits, setVisits] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [pageLoading, setPageLoading] = useState(true);
 
-  // ensure due visits + inspections exist
   useEffect(() => {
-    runMaintenanceScheduler();
-    setVisits(getMaintenanceVisits());
-  }, []);
+    const init = async () => {
+      const [contractsResult] = await Promise.all([
+        getAllContracts(),
+        getAllProjects(),
+      ]);
 
+      const loadedContracts = contractsResult.ok ? contractsResult.data : [];
+
+      const visitsResult = await getAllVisits();
+      const loadedVisits =
+        visitsResult.ok && Array.isArray(visitsResult.data)
+          ? visitsResult.data
+          : [];
+
+      setVisits(loadedVisits);
+
+      await runMaintenanceScheduler({
+        contracts: loadedContracts,
+        visits: loadedVisits,
+        addVisit,
+        addContractInspection,
+        updateContract,
+      });
+
+      setPageLoading(false);
+    };
+    init();
+  }, [
+    getAllContracts,
+    getAllProjects,
+    getAllVisits,
+    addVisit,
+    addContractInspection,
+    updateContract,
+  ]);
+
+  // ✅ contractById added back
   const contractById = useMemo(() => {
     const m = new Map();
-    contracts.forEach((c) => m.set(String(c.id), c));
+    contracts.forEach((c) => m.set(String(c.contractId), c));
     return m;
   }, [contracts]);
 
+  // ✅ filtered added back
   const filtered = useMemo(() => {
     let list = [...visits];
 
-    if (statusFilter) list = list.filter((v) => String(v.status) === statusFilter);
+    if (statusFilter)
+      list = list.filter((v) => String(v.status) === statusFilter);
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((v) => {
         const addr = v.propertyAddress?.line1 || "";
         return (
-          String(v.customerName || "").toLowerCase().includes(q) ||
-          String(v.customerEmail || "").toLowerCase().includes(q) ||
-          String(v.planName || "").toLowerCase().includes(q) ||
+          String(v.customerName || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(v.customerEmail || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(v.planName || "")
+            .toLowerCase()
+            .includes(q) ||
           String(addr).toLowerCase().includes(q) ||
-          String(v.visitNo || "").toLowerCase().includes(q)
+          String(v.visitNo || "")
+            .toLowerCase()
+            .includes(q)
         );
       });
     }
 
-    list.sort((a, b) => String(a.scheduledDate).localeCompare(String(b.scheduledDate)));
+    list.sort((a, b) =>
+      String(a.scheduledDate).localeCompare(String(b.scheduledDate)),
+    );
     return list;
   }, [visits, statusFilter, search]);
 
-  const syncInspectionStatus = (visit, newVisitStatus) => {
-    const inspections = lsGet(INSPECTIONS_KEY, []);
+  const syncInspectionStatus = async (visit, newVisitStatus) => {
+    if (!visit.inspectionId || !visit.contractId) return;
 
-    const idx = inspections.findIndex((i) => {
-      if (visit.inspectionId && Number(i.id) === Number(visit.inspectionId)) return true;
-      return String(i.maintenanceVisitId) === String(visit.id);
-    });
-
-    if (idx === -1) return;
-
-    // Map maintenance status -> inspection status (we add these to inspection dropdown too)
     const map = {
       Scheduled: "Scheduled",
       Completed: "Completed",
@@ -70,35 +111,54 @@ export default function MaintenanceVisits() {
       Cancelled: "Cancelled",
     };
 
-    const nextStatus = map[newVisitStatus] || "Scheduled";
+    const rawInspectionId = visit.inspectionId.replace("INSPECTION#", "");
 
-    inspections[idx] = {
-      ...inspections[idx],
-      status: nextStatus,
-      updatedAt: new Date().toISOString(),
-      notes:
-        inspections[idx].notes ||
-        `Maintenance Visit ${visit.visitNo || ""}`.trim(),
-    };
-
-    lsSet(INSPECTIONS_KEY, inspections);
+    try {
+      await updateContractInspection(visit.contractId, rawInspectionId, {
+        status: map[newVisitStatus] || "Scheduled",
+      });
+    } catch (err) {
+      console.error("Failed to sync inspection status:", err.message);
+    }
   };
 
-  const updateVisit = (id, patch) => {
-    const next = visits.map((v) =>
-      v.id === id ? { ...v, ...patch, updatedAt: new Date().toISOString() } : v
-    );
-    saveMaintenanceVisits(next);
-    setVisits(next);
+  const setVisitStatus = async (visit, status) => {
+    // ✅ strip VISIT# prefix
+    const rawVisitId = visit.visitId.replace("VISIT#", "");
+
+    const result = await updateVisit(visit.contractId, rawVisitId, { status });
+
+    if (result.ok) {
+      await syncInspectionStatus(visit, status);
+      const visitsResult = await getAllVisits();
+      if (visitsResult.ok && Array.isArray(visitsResult.data)) {
+        setVisits(visitsResult.data);
+      }
+    }
   };
 
-  const setVisitStatus = (visit, status) => {
-    updateVisit(visit.id, {
-      status,
-      completedAt: status === "Completed" ? new Date().toISOString() : visit.completedAt || null,
+  const handleRefresh = async () => {
+    const [contractsResult, visitsResult] = await Promise.all([
+      getAllContracts(),
+      getAllVisits(),
+    ]);
+
+    const loadedContracts = contractsResult.ok ? contractsResult.data : [];
+    const loadedVisits =
+      visitsResult.ok && Array.isArray(visitsResult.data)
+        ? visitsResult.data
+        : [];
+
+    setVisits(loadedVisits);
+
+    await runMaintenanceScheduler({
+      contracts: loadedContracts,
+      visits: loadedVisits,
+      addVisit,
+      addContractInspection,
+      updateContract,
+      updateVisit,
     });
-
-    syncInspectionStatus(visit, status);
   };
 
   return (
@@ -109,7 +169,8 @@ export default function MaintenanceVisits() {
             Maintenance Visits
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
-            Scheduled service events generated from maintenance contracts (auto-linked to inspections)
+            Scheduled service events generated from maintenance contracts
+            (auto-linked to inspections)
           </p>
         </div>
       </div>
@@ -146,17 +207,16 @@ export default function MaintenanceVisits() {
 
         <button
           className="ml-auto px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          onClick={() => {
-            runMaintenanceScheduler();
-            setVisits(getMaintenanceVisits());
-          }}
+          onClick={handleRefresh} // ✅ fixed — was using addInspection which doesn't exist here
         >
           Refresh
         </button>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Visit List</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          Visit List
+        </div>
 
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
@@ -179,12 +239,19 @@ export default function MaintenanceVisits() {
               const contractStatus = contract?.status || "—";
 
               return (
-                <tr key={v.id} className="border-t border-gray-100 dark:border-gray-800">
+                <tr
+                  key={v.visitId}
+                  className="border-t border-gray-100 dark:border-gray-800"
+                >
                   <td className="p-3 font-medium">{v.visitNo || "—"}</td>
                   <td className="p-3">{v.scheduledDate || "—"}</td>
                   <td className="p-3">
-                    <div className="font-medium text-gray-800 dark:text-gray-100">{v.customerName}</div>
-                    <div className="text-xs text-gray-500">{v.customerEmail}</div>
+                    <div className="font-medium text-gray-800 dark:text-gray-100">
+                      {v.customerName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {v.customerEmail}
+                    </div>
                     <div className="text-xs text-gray-400">
                       Contract: {contract?.contractNo || "—"} ({contractStatus})
                     </div>
@@ -192,11 +259,17 @@ export default function MaintenanceVisits() {
                   <td className="p-3">{v.propertyAddress?.line1 || "—"}</td>
                   <td className="p-3">{v.planName || "—"}</td>
                   <td className="p-3">
-                    {v.invoiceNo ? <span>{v.invoiceNo}</span> : <span className="text-gray-400">—</span>}
+                    {v.invoiceNo ? (
+                      <span>{v.invoiceNo}</span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
-                  <td className="p-3">
+                  <td className="p3">
                     {v.inspectionId ? (
-                      <span className="text-gray-800 dark:text-gray-100">#{v.inspectionId}</span>
+                      <span className="text-gray-800 dark:text-gray-100">
+                        {v.inspectionId}
+                      </span>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
@@ -237,7 +310,10 @@ export default function MaintenanceVisits() {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={9}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No visits found.
                 </td>
               </tr>
@@ -247,7 +323,8 @@ export default function MaintenanceVisits() {
       </div>
 
       <div className="text-xs text-gray-500">
-        Tip: Check <b>Projects → Inspections</b> to see the automatically created inspection records.
+        Tip: Check <b>Projects → Inspections</b> to see the automatically
+        created inspection records.
       </div>
     </div>
   );
