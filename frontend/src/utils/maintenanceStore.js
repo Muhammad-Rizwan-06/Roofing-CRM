@@ -1,27 +1,3 @@
-const CONTRACTS_KEY = "maintenance_contracts";
-const VISITS_KEY = "maintenance_visits";
-
-const safeParse = (raw, fallback) => {
-  try {
-    const v = JSON.parse(raw);
-    return v ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-export const lsGet = (key, fallback) =>
-  safeParse(localStorage.getItem(key), fallback);
-
-export const lsSet = (key, value) =>
-  localStorage.setItem(key, JSON.stringify(value));
-
-export const getMaintenanceContracts = () => lsGet(CONTRACTS_KEY, []);
-export const saveMaintenanceContracts = (list) => lsSet(CONTRACTS_KEY, list);
-
-export const getMaintenanceVisits = () => lsGet(VISITS_KEY, []);
-export const saveMaintenanceVisits = (list) => lsSet(VISITS_KEY, list);
-
 const pad2 = (n) => String(n).padStart(2, "0");
 
 // dateKey format: YYYY-MM-DD
@@ -31,7 +7,6 @@ export const todayKey = () => {
 };
 
 export const normalizeDateKey = (v) => {
-  // Accept YYYY-MM-DD only; fallback to today
   const s = String(v || "").trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   return todayKey();

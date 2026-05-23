@@ -3,10 +3,13 @@ import ThemeProvider from "./ThemeContext";
 import { AuthProvider } from "./AuthContext";
 import { CompanyProvider } from "./CompanyContext";
 import { RoleProvider } from "./RoleContext";
-import { EmployeeProvider } from "./EmployeeContext";
+import { UserProvider } from "./UserContext";
 import { LeadsProvider } from "./LeadContext";
 import { ProjectsProvider } from "./ProjectsContext";
 import { ContractsProvider } from "./ContractContext";
+import { EmployeesProvider } from "./EmployeesContext";
+import { TasksProvider } from "./TasksContext";
+import { SubcontractorsProvider } from "./SubContractorContext";
 
 // Add more providers as you create them
 export const RootProvider = ({ children }) => {
@@ -15,15 +18,21 @@ export const RootProvider = ({ children }) => {
         <AuthProvider>
             <CompanyProvider>
                 <RoleProvider>
-                    <EmployeeProvider>
+                    <UserProvider>
                         <LeadsProvider>
                             <ProjectsProvider>
                                 <ContractsProvider>
-                                    {children}
+                                    <EmployeesProvider>
+                                        <TasksProvider>
+                                            <SubcontractorsProvider>
+                                                {children}
+                                            </SubcontractorsProvider>
+                                        </TasksProvider>
+                                    </EmployeesProvider>
                                 </ContractsProvider>
                             </ProjectsProvider>
                         </LeadsProvider>
-                    </EmployeeProvider>
+                    </UserProvider>
                 </RoleProvider>
             </CompanyProvider>
         </AuthProvider>

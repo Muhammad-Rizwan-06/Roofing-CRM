@@ -1,17 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
-
-const getLocalData = (key) => {
-  try {
-    const data = JSON.parse(localStorage.getItem(key));
-    if (Array.isArray(data)) return data;
-    if (data?.list && Array.isArray(data.list)) return data.list;
-    return [];
-  } catch {
-    return [];
-  }
-};
+import { useTasks } from "../context/TasksContext";
+import { useProjects } from "../context/ProjectsContext";
+import { useEmployees } from "../context/EmployeesContext";
 
 const normalize = (v) =>
   String(v || "")
@@ -26,112 +18,108 @@ const Tasks = () => {
   const isPM = roleName === ROLE.PM;
   const isWorker = roleName === ROLE.WORKER;
 
-  // Only Admin/PM can create/delete tasks
   const canManageTasks = isAdmin || isPM;
-
-  // Worker can update status (but only for their tasks)
   const canUpdateStatus = canManageTasks || isWorker;
 
-  const [tasks, setTasks] = useState(() => getLocalData("tasks"));
-  const [projects, setProjects] = useState(() => getLocalData("projects"));
-  const [employees, setEmployees] = useState(() => getLocalData("employees"));
+  const {
+    tasks,
+    loading: tasksLoading,
+    error: tasksError,
+    fetchTasks,
+    addTask,
+    updateTask,
+    deleteTask,
+  } = useTasks();
+  const {
+    projects,
+    loading: projectsLoading,
+    error: projectsError,
+    getAll,
+  } = useProjects();
+  const {
+    employees,
+    loading: employeesLoading,
+    error: employeesError,
+    getAllEmployees,
+  } = useEmployees();
 
   const [view, setView] = useState("table");
 
   const [form, setForm] = useState({
     title: "",
     projectId: "",
+    projectName: "",
     employeeId: "",
-    worker: "", // fallback text if no employee selected
+    worker: "",
     startDate: "",
     endDate: "",
     priority: "Medium",
     status: "Pending",
   });
 
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  // refresh projects/employees when user returns to tab
-  useEffect(() => {
-    const onFocus = () => {
-      setProjects(getLocalData("projects"));
-      setEmployees(getLocalData("employees"));
-      setTasks(getLocalData("tasks"));
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    fetchTasks();
+    getAll();
+    getAllEmployees();
   }, []);
 
-  // Find which employee record belongs to current logged-in user (for Worker filtering)
+  // ── Worker → employee linking ──────────────────────────────────────────────
   const myEmployee = useMemo(() => {
     const myEmail = normalize(user?.email);
     const myName = normalize(user?.name);
-
     return (
-      (employees || []).find(
-        (e) => normalize(e.email) && normalize(e.email) === myEmail,
-      ) ||
-      (employees || []).find((e) => normalize(e.name) === myName) ||
+      employees.find((e) => normalize(e.email) === myEmail) ||
+      employees.find((e) => normalize(e.name) === myName) ||
       null
     );
   }, [employees, user?.email, user?.name]);
 
-  const myEmployeeId = myEmployee?.id;
+  const myEmployeeId = myEmployee?.employeeId;
 
   const isMyTask = (t) => {
-    if (!isWorker) return true; // Admin/PM can see all
-    const taskEmpId = t.employeeId;
-    const taskWorkerName = normalize(t.worker);
-
-    // Preferred match: employeeId
+    if (!isWorker) return true;
     if (
       myEmployeeId != null &&
-      taskEmpId != null &&
-      String(taskEmpId) === String(myEmployeeId)
-    ) {
+      t.employeeId != null &&
+      String(t.employeeId) === String(myEmployeeId)
+    )
       return true;
-    }
-
-    // Fallback match: worker name
-    if (normalize(user?.name) && taskWorkerName === normalize(user?.name)) {
+    if (normalize(user?.name) && normalize(t.worker) === normalize(user?.name))
       return true;
-    }
-
     return false;
   };
 
-  const handleAdd = () => {
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleAdd = async () => {
     if (!canManageTasks) return;
-
     if (!form.title || !form.projectId) {
       alert("Fill required fields");
       return;
     }
 
     const selectedEmployee = employees.find(
-      (e) => String(e.id) === String(form.employeeId),
+      (e) => String(e.employeeId) === String(form.employeeId),
     );
-    const workerName = selectedEmployee?.name || form.worker || "";
 
-    const newTask = {
-      id: Date.now(),
+    await addTask({
       title: form.title,
       projectId: form.projectId,
+      projectName:
+        projects.find((p) => String(p.projectId) === String(form.projectId))?.name ??
+        "",
       employeeId: form.employeeId ? Number(form.employeeId) : null,
-      worker: workerName,
+      worker: selectedEmployee?.name || form.worker || "",
       startDate: form.startDate,
       endDate: form.endDate,
       priority: form.priority,
       status: form.status || "Pending",
-    };
-
-    setTasks([...tasks, newTask]);
+    });
 
     setForm({
       title: "",
       projectId: "",
+      projectName: "",
       employeeId: "",
       worker: "",
       startDate: "",
@@ -141,25 +129,19 @@ const Tasks = () => {
     });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (taskId) => {
     if (!canManageTasks) return;
-    setTasks(tasks.filter((t) => t.id !== id));
+    await deleteTask(taskId);
   };
 
-  const changeStatus = (id, status) => {
+  const changeStatus = async (taskId, status) => {
     if (!canUpdateStatus) return;
-
-    // Worker can only update their own tasks
-    const target = tasks.find((t) => t.id === id);
+    const target = tasks.find((t) => t.taskId === taskId);
     if (isWorker && target && !isMyTask(target)) return;
-
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, status } : t)));
+    await updateTask(taskId, { status });
   };
 
-  const getProjectName = (id) => {
-    return projects.find((p) => p.id == id)?.name || "N/A";
-  };
-
+  // ── Derived data ───────────────────────────────────────────────────────────
   const statuses = ["Pending", "In Progress", "Completed"];
 
   const visibleTasks = useMemo(() => {
@@ -167,8 +149,18 @@ const Tasks = () => {
     return tasks.filter(isMyTask);
   }, [tasks, isWorker, myEmployeeId, user?.name]);
 
+  const getProjectName = (id) =>
+    projects.find((p) => String(p.projectId) === String(id))?.name || "N/A";
+
+  // ── Loading / Error ────────────────────────────────────────────────────────
+  const loading = tasksLoading || projectsLoading || employeesLoading;
+  const error = tasksError || projectsError || employeesError;
+
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Tasks Management</h1>
@@ -178,7 +170,6 @@ const Tasks = () => {
             </p>
           )}
         </div>
-
         {isWorker && (
           <div className="text-xs text-gray-500">
             Employee linked:{" "}
@@ -187,32 +178,22 @@ const Tasks = () => {
         )}
       </div>
 
-      {/* VIEW TOGGLE */}
+      {/* View Toggle */}
       <div className="flex gap-3">
-        <button
-          onClick={() => setView("table")}
-          className={`px-4 py-2 rounded ${
-            view === "table"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-black"
-          }`}
-        >
-          Table View
-        </button>
-
-        <button
-          onClick={() => setView("kanban")}
-          className={`px-4 py-2 rounded ${
-            view === "kanban"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-black"
-          }`}
-        >
-          Kanban Board
-        </button>
+        {["table", "kanban"].map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-4 py-2 rounded capitalize ${
+              view === v ? "bg-blue-600 text-white" : "bg-gray-200 text-black"
+            }`}
+          >
+            {v === "table" ? "Table View" : "Kanban Board"}
+          </button>
+        ))}
       </div>
 
-      {/* FORM (Admin/PM only) */}
+      {/* Form (Admin/PM only) */}
       {canManageTasks && (
         <div className="bg-white p-5 dark:bg-gray-900 rounded-2xl shadow space-y-4">
           <input
@@ -229,21 +210,20 @@ const Tasks = () => {
           >
             <option value="">Select Project</option>
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>
+              <option key={p.projectId} value={p.projectId}>
                 {p.name}
               </option>
             ))}
           </select>
 
-          {/* Employee dropdown + fallback */}
           <select
-            className="border p-3 w-full rounded"
+            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
             value={form.employeeId}
             onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
           >
             <option value="">Assign Employee (optional)</option>
             {employees.map((e) => (
-              <option key={e.id} value={e.id}>
+              <option key={e.employeeId} value={e.employeeId}>
                 {e.name} {e.role ? `— ${e.role}` : ""}
               </option>
             ))}
@@ -265,7 +245,6 @@ const Tasks = () => {
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
             />
-
             <input
               type="date"
               className="border p-3 w-full rounded"
@@ -275,7 +254,7 @@ const Tasks = () => {
           </div>
 
           <select
-            className="border dark:bg-gray-900 text-white p-3 w-full rounded"
+            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
             value={form.priority}
             onChange={(e) => setForm({ ...form, priority: e.target.value })}
           >
@@ -303,7 +282,7 @@ const Tasks = () => {
         </div>
       )}
 
-      {/* TABLE VIEW */}
+      {/* Table View */}
       {view === "table" && (
         <div className="bg-white rounded-2xl shadow overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -320,38 +299,37 @@ const Tasks = () => {
                 )}
               </tr>
             </thead>
-
             <tbody>
               {visibleTasks.map((t) => (
                 <tr
-                  key={t.id}
-                  className="border-t dark:bg-gray-900  hover:bg-gray-800"
+                  key={t.taskId}
+                  className="border-t dark:bg-gray-900 hover:bg-gray-800"
                 >
                   <td className="px-4 py-3">{t.title}</td>
-                  <td className="px-4 py-3">{getProjectName(t.projectId)}</td>
+                  <td className="px-4 py-3">
+                    {t.projectName || getProjectName(t.projectId)}
+                  </td>
                   <td className="px-4 py-3">{t.worker || "—"}</td>
                   <td className="px-4 py-3">
                     {t.startDate || "—"} → {t.endDate || "—"}
                   </td>
                   <td className="px-4 py-3">{t.priority}</td>
-
                   <td className="px-4 py-3">
                     <select
                       value={t.status}
-                      onChange={(e) => changeStatus(t.id, e.target.value)}
-                      className="border rounded px-2 py-1"
+                      onChange={(e) => changeStatus(t.taskId, e.target.value)}
+                      className="border rounded px-2 py-1 dark:bg-gray-900 text-white"
                       disabled={!canUpdateStatus}
                     >
-                      <option>Pending</option>
-                      <option>In Progress</option>
-                      <option>Completed</option>
+                      {statuses.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
                     </select>
                   </td>
-
                   {canManageTasks && (
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() => handleDelete(t.id)}
+                        onClick={() => handleDelete(t.taskId)}
                         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                       >
                         Delete
@@ -360,14 +338,14 @@ const Tasks = () => {
                   )}
                 </tr>
               ))}
-
               {visibleTasks.length === 0 && (
                 <tr>
                   <td
                     colSpan={canManageTasks ? 7 : 6}
                     className="px-4 py-8 text-center text-gray-500"
                   >
-                    No tasks yet.
+                    {loading ? "Loading..." : "No tasks yet."}
+                    {error ? error : ""}
                   </td>
                 </tr>
               )}
@@ -376,7 +354,7 @@ const Tasks = () => {
         </div>
       )}
 
-      {/* KANBAN VIEW */}
+      {/* Kanban View */}
       {view === "kanban" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {statuses.map((status) => (
@@ -385,36 +363,33 @@ const Tasks = () => {
               className="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl"
             >
               <h2 className="font-semibold mb-4">{status}</h2>
-
               <div className="space-y-3">
                 {visibleTasks
                   .filter((t) => t.status === status)
                   .map((t) => (
                     <div
-                      key={t.id}
-                      className="bg-white dark:bg-gray-900  p-3 rounded-lg shadow"
+                      key={t.taskId}
+                      className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow"
                     >
                       <p className="font-semibold">{t.title}</p>
                       <p className="text-sm text-gray-500">
-                        {getProjectName(t.projectId)}
+                        {t.projectName || getProjectName(t.projectId)}
                       </p>
                       <p className="text-sm">{t.worker || "—"}</p>
                       <p className="text-xs mt-1">Priority: {t.priority}</p>
-
                       <select
                         value={t.status}
-                        onChange={(e) => changeStatus(t.id, e.target.value)}
+                        onChange={(e) => changeStatus(t.taskId, e.target.value)}
                         className="mt-2 w-full border rounded px-2 py-1 dark:bg-gray-900 text-white"
                         disabled={!canUpdateStatus}
                       >
-                        <option>Pending</option>
-                        <option>In Progress</option>
-                        <option>Completed</option>
+                        {statuses.map((s) => (
+                          <option key={s}>{s}</option>
+                        ))}
                       </select>
-
                       {canManageTasks && (
                         <button
-                          onClick={() => handleDelete(t.id)}
+                          onClick={() => handleDelete(t.taskId)}
                           className="bg-red-500 text-white px-2 py-1 mt-3 rounded w-full hover:bg-red-600"
                         >
                           Delete

@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-const lsGet = (key, fallback = []) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+import { useEmployees } from "../../context/EmployeesContext";
 
 const TeamsEmployees = () => {
-  const [employees, setEmployees] = useState(() => lsGet("employees", []));
+  const {
+    employees,
+    loading,
+    error,
+    getAllEmployees,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+  } = useEmployees();
+
   const [editId, setEditId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -24,8 +26,12 @@ const TeamsEmployees = () => {
   });
 
   useEffect(() => {
-    lsSet("employees", employees);
-  }, [employees]);
+    const init = async () => {
+      await getAllEmployees();
+      setPageLoading(false);
+    };
+    init();
+  }, [getAllEmployees]);
 
   const reset = () => {
     setEditId(null);
@@ -39,7 +45,7 @@ const TeamsEmployees = () => {
     });
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return alert("Employee name is required");
 
@@ -50,22 +56,25 @@ const TeamsEmployees = () => {
       email: form.email.trim(),
       hourlyRate: Number(form.hourlyRate || 0),
       availability: form.availability,
-      updatedAt: new Date().toISOString(),
     };
 
+    setSubmitting(true);
+
+    let result;
     if (editId) {
-      setEmployees((prev) => prev.map((x) => (x.id === editId ? { ...x, ...payload } : x)));
+      result = await updateEmployee(editId, payload);
     } else {
-      setEmployees((prev) => [
-        { id: Date.now(), ...payload, createdAt: new Date().toISOString() },
-        ...prev,
-      ]);
+      result = await addEmployee(payload);
     }
+
+    setSubmitting(false);
+
+    if (!result.ok) return alert(result.message);
     reset();
   };
 
   const onEdit = (emp) => {
-    setEditId(emp.id);
+    setEditId(emp.employeeId); // ✅ use employeeId not emp.id
     setForm({
       name: emp.name || "",
       role: emp.role || "",
@@ -76,11 +85,13 @@ const TeamsEmployees = () => {
     });
   };
 
-  const onDelete = (id) => {
-    const ok = confirm("Delete this employee?");
-    if (!ok) return;
-    setEmployees((prev) => prev.filter((x) => x.id !== id));
-    if (editId === id) reset();
+  const onDelete = async (employeeId) => {
+    const confirmed = confirm("Delete this employee?");
+    if (!confirmed) return;
+
+    const result = await deleteEmployee(employeeId);
+    if (!result.ok) return alert(result.message);
+    if (editId === employeeId) reset();
   };
 
   const total = useMemo(() => employees.length, [employees]);
@@ -93,15 +104,25 @@ const TeamsEmployees = () => {
             Teams / Employees
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
-            Employee directory used for task assignment (localStorage)
+            Employee directory used for task assignment
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Total Employees</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Total Employees
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {total}
+          </p>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300">
+          Error: {error}
+        </div>
+      )}
 
       <form
         onSubmit={submit}
@@ -149,7 +170,9 @@ const TeamsEmployees = () => {
               type="number"
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.hourlyRate}
-              onChange={(e) => setForm((p) => ({ ...p, hourlyRate: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, hourlyRate: e.target.value }))
+              }
               placeholder="e.g. 15"
             />
           </div>
@@ -159,7 +182,9 @@ const TeamsEmployees = () => {
             <input
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.phone}
-              onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, phone: e.target.value }))
+              }
               placeholder="Phone"
             />
           </div>
@@ -170,7 +195,9 @@ const TeamsEmployees = () => {
               type="email"
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.email}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, email: e.target.value }))
+              }
               placeholder="Email"
             />
           </div>
@@ -180,7 +207,9 @@ const TeamsEmployees = () => {
             <select
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.availability}
-              onChange={(e) => setForm((p) => ({ ...p, availability: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, availability: e.target.value }))
+              }
             >
               <option value="Available">Available</option>
               <option value="Busy">Busy</option>
@@ -189,8 +218,15 @@ const TeamsEmployees = () => {
           </div>
         </div>
 
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700">
-          {editId ? "Update Employee" : "Add Employee"}
+        <button
+          disabled={submitting}
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700 disabled:opacity-50"
+        >
+          {submitting
+            ? "Saving..."
+            : editId
+              ? "Update Employee"
+              : "Add Employee"}
         </button>
       </form>
 
@@ -213,7 +249,7 @@ const TeamsEmployees = () => {
           <tbody>
             {employees.map((e) => (
               <tr
-                key={e.id}
+                key={e.employeeId}
                 className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
               >
                 <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
@@ -232,10 +268,16 @@ const TeamsEmployees = () => {
                   {e.availability || "—"}
                 </td>
                 <td className="px-4 py-3 text-right space-x-3">
-                  <button className="text-blue-600 hover:underline" onClick={() => onEdit(e)}>
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => onEdit(e)}
+                  >
                     Edit
                   </button>
-                  <button className="text-red-600 hover:underline" onClick={() => onDelete(e.id)}>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => onDelete(e.employeeId)}
+                  >
                     Delete
                   </button>
                 </td>
@@ -244,8 +286,11 @@ const TeamsEmployees = () => {
 
             {employees.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-300">
-                  No employees yet.
+                <td
+                  colSpan={6}
+                  className="px-4 py-8 text-center text-gray-500 dark:text-gray-300"
+                >
+                  {pageLoading ? <p>Loading...</p> : <p>No employees yet.</p>}
                 </td>
               </tr>
             )}

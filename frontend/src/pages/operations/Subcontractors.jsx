@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-const lsGet = (key, fallback = []) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+import { useSubcontractors } from "../../context/SubContractorContext";
 
 const Subcontractors = () => {
-  const [subs, setSubs] = useState(() => lsGet("subcontractors", []));
+  const {
+    subcontractors,
+    loading,
+    error,
+    getAllSubcontractors,
+    addSubcontractor,
+    updateSubcontractor,
+    deleteSubcontractor,
+  } = useSubcontractors();
+
   const [editId, setEditId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -25,8 +27,12 @@ const Subcontractors = () => {
   });
 
   useEffect(() => {
-    lsSet("subcontractors", subs);
-  }, [subs]);
+    const init = async () => {
+      await getAllSubcontractors();
+      setPageLoading(false);
+    };
+    init();
+  }, [getAllSubcontractors]);
 
   const reset = () => {
     setEditId(null);
@@ -41,7 +47,7 @@ const Subcontractors = () => {
     });
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return alert("Name is required");
 
@@ -53,22 +59,25 @@ const Subcontractors = () => {
       rate: Number(form.rate || 0),
       notes: form.notes || "",
       active: form.active,
-      updatedAt: new Date().toISOString(),
     };
 
+    setSubmitting(true);
+
+    let result;
     if (editId) {
-      setSubs((prev) => prev.map((x) => (x.id === editId ? { ...x, ...payload } : x)));
+      result = await updateSubcontractor(editId, payload);
     } else {
-      setSubs((prev) => [
-        { id: Date.now(), ...payload, createdAt: new Date().toISOString() },
-        ...prev,
-      ]);
+      result = await addSubcontractor(payload);
     }
+
+    setSubmitting(false);
+
+    if (!result.ok) return alert(result.message);
     reset();
   };
 
   const onEdit = (s) => {
-    setEditId(s.id);
+    setEditId(s.subcontractorId); // ✅ use subcontractorId not s.id
     setForm({
       name: s.name || "",
       trade: s.trade || "",
@@ -80,20 +89,23 @@ const Subcontractors = () => {
     });
   };
 
-  const onDelete = (id) => {
-    const ok = confirm("Delete subcontractor?");
-    if (!ok) return;
-    setSubs((prev) => prev.filter((x) => x.id !== id));
-    if (editId === id) reset();
+  const onDelete = async (subcontractorId) => {
+    const confirmed = confirm("Delete subcontractor?");
+    if (!confirmed) return;
+    const result = await deleteSubcontractor(subcontractorId);
+    if (!result.ok) return alert(result.message);
+    if (editId === subcontractorId) reset();
   };
 
-  const total = useMemo(() => subs.length, [subs]);
+  const total = useMemo(() => subcontractors.length, [subcontractors]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Subcontractors</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Subcontractors
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Manage subcontractors (useful for Expenses → Subcontractor category)
           </p>
@@ -101,17 +113,32 @@ const Subcontractors = () => {
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
           <p className="text-xs text-gray-500 dark:text-gray-300">Total</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {total}
+          </p>
         </div>
       </div>
 
-      <form onSubmit={submit} className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow space-y-4 border border-gray-100 dark:border-gray-800">
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300">
+          Error: {error}
+        </div>
+      )}
+
+      <form
+        onSubmit={submit}
+        className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow space-y-4 border border-gray-100 dark:border-gray-800"
+      >
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-gray-800 dark:text-white">
             {editId ? "Edit Subcontractor" : "Add Subcontractor"}
           </h2>
           {editId && (
-            <button type="button" onClick={reset} className="text-sm text-gray-600 dark:text-gray-300 hover:underline">
+            <button
+              type="button"
+              onClick={reset}
+              className="text-sm text-gray-600 dark:text-gray-300 hover:underline"
+            >
               Cancel Edit
             </button>
           )}
@@ -133,7 +160,9 @@ const Subcontractors = () => {
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               placeholder="Roofing, Gutters, Painting..."
               value={form.trade}
-              onChange={(e) => setForm((p) => ({ ...p, trade: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, trade: e.target.value }))
+              }
             />
           </div>
 
@@ -152,7 +181,9 @@ const Subcontractors = () => {
             <input
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.phone}
-              onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, phone: e.target.value }))
+              }
             />
           </div>
 
@@ -162,7 +193,9 @@ const Subcontractors = () => {
               type="email"
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.email}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, email: e.target.value }))
+              }
             />
           </div>
 
@@ -171,7 +204,9 @@ const Subcontractors = () => {
             <select
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.active}
-              onChange={(e) => setForm((p) => ({ ...p, active: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, active: e.target.value }))
+              }
             >
               <option value="Yes">Yes</option>
               <option value="No">No</option>
@@ -183,19 +218,26 @@ const Subcontractors = () => {
             <input
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
               value={form.notes}
-              onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
               placeholder="Optional"
             />
           </div>
         </div>
 
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700">
-          {editId ? "Update" : "Add"}
+        <button
+          disabled={submitting}
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700 disabled:opacity-50"
+        >
+          {submitting ? "Saving..." : editId ? "Update" : "Add"}
         </button>
       </form>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-x-auto border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">List</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          List
+        </div>
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-100 dark:bg-gray-950 text-gray-700 dark:text-gray-200">
             <tr>
@@ -207,21 +249,45 @@ const Subcontractors = () => {
             </tr>
           </thead>
           <tbody>
-            {subs.map((s) => (
-              <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">{s.name}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{s.trade || "—"}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">${Number(s.rate || 0).toFixed(2)}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{s.active}</td>
+            {subcontractors.map((s) => (
+              <tr
+                key={s.subcontractorId}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
+                <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
+                  {s.name}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  {s.trade || "—"}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  ${Number(s.rate || 0).toFixed(2)}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  {s.active}
+                </td>
                 <td className="px-4 py-3 text-right space-x-3">
-                  <button className="text-blue-600 hover:underline" onClick={() => onEdit(s)}>Edit</button>
-                  <button className="text-red-600 hover:underline" onClick={() => onDelete(s.id)}>Delete</button>
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => onEdit(s)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => onDelete(s.subcontractorId)}
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
-            {subs.length === 0 && (
+            {subcontractors.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-gray-500 dark:text-gray-300"
+                >
                   No subcontractors yet.
                 </td>
               </tr>

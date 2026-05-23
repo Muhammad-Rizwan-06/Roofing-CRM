@@ -331,7 +331,7 @@ const WorkOrders = () => {
                   colSpan={7}
                   className="px-4 py-8 text-center text-gray-500 dark:text-gray-300"
                 >
-                  No work orders yet.
+                  {pageLoading ? <p>Loading...</p> : <p>No work orders yet.</p>}
                 </td>
               </tr>
             )}

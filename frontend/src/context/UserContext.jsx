@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { apiClient } from "../utils/apiClient";
 
-const EmployeeContext = createContext();
+const UserContext = createContext();
 
-export const useEmployee = () => {
-  const context = useContext(EmployeeContext);
+export const UserUser = () => {
+  const context = useContext(UserContext);
   if (!context) {
-    throw new Error("useEmployee must be used within an EmployeeProvider");
+    throw new Error("UserUser must be used within an UserProvider");
   }
   return context;
 };
 
-export const EmployeeProvider = ({ children }) => {
+export const UserProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -58,24 +58,24 @@ export const EmployeeProvider = ({ children }) => {
 
   // Get employee by ID
   const getById = useCallback(
-    (employeeId) => {
-      return employees.find((employee) => employee.employeeId === employeeId);
+    (userId) => {
+      return employees.find((employee) => employee.userId === userId);
     },
     [employees]
   );
 
   // Update an employee
-  const update = useCallback(async (employeeId, employeeData) => {
+  const update = useCallback(async (userId, employeeData) => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.put(`/users/${employeeId}`, employeeData);
+      const response = await apiClient.put(`/users/${userId}`, employeeData);
       const updatedEmployee = response;
 
       setEmployees((prevEmployees) =>
         prevEmployees.map((employee) =>
-          employee.employeeId === employeeId
+          employee.userId === userId
             ? {
                 ...employee,
                 ...employeeData,
@@ -85,7 +85,7 @@ export const EmployeeProvider = ({ children }) => {
         )
       );
 
-      return getById(employeeId);
+      return getById(userId);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -95,15 +95,15 @@ export const EmployeeProvider = ({ children }) => {
   }, [getById]);
 
   // Delete an employee
-  const delete_ = useCallback(async (employeeId) => {
+  const delete_ = useCallback(async (userId) => {
     try {
       setLoading(true);
       setError(null);
 
-      await apiClient.delete(`/users/${employeeId}`);
+      await apiClient.delete(`/users/${userId}`);
 
       setEmployees((prevEmployees) =>
-        prevEmployees.filter((employee) => employee.employeeId !== employeeId)
+        prevEmployees.filter((employee) => employee.userId !== userId)
       );
       return true;
     } catch (err) {
@@ -132,8 +132,8 @@ export const EmployeeProvider = ({ children }) => {
   };
 
   return (
-    <EmployeeContext.Provider value={value}>{children}</EmployeeContext.Provider>
+    <UserContext.Provider value={value}>{children}</UserContext.Provider>
   );
 };
 
-export default EmployeeContext;
+export default UserContext;

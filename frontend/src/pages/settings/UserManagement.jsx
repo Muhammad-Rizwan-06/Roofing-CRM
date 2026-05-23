@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useEmployee } from "../../context/EmployeeContext";
+import { UserUser } from "../../context/UserContext";
 import { useRole } from "../../context/RoleContext";
 import { generateSalt, hashPassword } from "../../utils/password";
 
 const UserManagement = () => {
-  const { employees: users, loading, error, create, update, delete: deleteUser, getAll } = useEmployee();
+  const { employees: users, loading, error, create, update, delete: deleteUser, getAll } = UserUser();
   const { getRoles, roles } = useRole();
 
   const [editId, setEditId] = useState(null);
@@ -57,18 +57,18 @@ const UserManagement = () => {
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       phone: form?.phone.trim(),
-      roleId: Number(form.roleId),
+      roleId: form.roleId,
       roleName,
       status: form.status,
     };
 
     // unique email check
     const emailTaken = users.some(
-      (u) => u.email === payloadBase.email && u.employeeId !== editId
+      (u) => u.email === payloadBase.email && u.userId !== editId
     );
     if (emailTaken) return alert("Email already exists");
 
-    const existingUser = editId ? users.find((u) => u.employeeId === editId) : null;
+    const existingUser = editId ? users.find((u) => u.userId === editId) : null;
 
     // Password rules:
     // - new user: password required
@@ -104,7 +104,7 @@ const UserManagement = () => {
   };
 
   const onEdit = (u) => {
-    setEditId(u.employeeId);
+    setEditId(u.userId);
     setForm({
       name: u.name || "",
       email: u.email || "",
@@ -115,12 +115,12 @@ const UserManagement = () => {
     });
   };
 
-  const onDelete = async (employeeId) => {
+  const onDelete = async (userId) => {
     const ok = confirm("Delete this user?");
     if (!ok) return;
     try {
-      await deleteUser(employeeId);
-      if (editId === employeeId) reset();
+      await deleteUser(userId);
+      if (editId === userId) reset();
     } catch (err) {
       alert(`Failed to delete user: ${err.message}`);
     }
@@ -244,7 +244,7 @@ const UserManagement = () => {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.employeeId} className="border-t border-gray-100 dark:border-gray-800">
+              <tr key={u.userId} className="border-t border-gray-100 dark:border-gray-800">
                 <td className="p-3 font-medium text-gray-800 dark:text-white">{u.name}</td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">{u.email}</td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">{(u.roleName || "")}</td>
@@ -259,7 +259,7 @@ const UserManagement = () => {
                   </button>
                   <button 
                     className="text-red-600 hover:underline disabled:opacity-50"
-                    onClick={() => onDelete(u.employeeId)}
+                    onClick={() => onDelete(u.userId)}
                     disabled={loading}
                   >
                     Delete
