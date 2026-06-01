@@ -13,6 +13,7 @@ export const useProjects = () => {
 
 export const ProjectsProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
+  const [dashboardProjects, setDashboardProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -27,6 +28,25 @@ export const ProjectsProvider = ({ children }) => {
       const response = await apiClient.get(url);
       const data = response.projects;
       setProjects(Array.isArray(data) ? data : []);
+      return { ok: true, data };
+    } catch (err) {
+      const errorMessage = err.message || "Failed to fetch projects";
+      setError(errorMessage);
+      return { ok: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // GET /projects/dashboard — all projects, with linked items
+  const getDashboardProjects = useCallback(async (status = null) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = "/projects/dashboard";
+      const response = await apiClient.get(url);
+      const data = response.projects;
+      setDashboardProjects(Array.isArray(data) ? data : []);
       return { ok: true, data };
     } catch (err) {
       const errorMessage = err.message || "Failed to fetch projects";
@@ -84,7 +104,6 @@ export const ProjectsProvider = ({ children }) => {
         projectData,
       );
       const updatedProject = response.project;
-      console.log("Updated project:", updatedProject);
       setProjects((prev) =>
         prev.map((p) => (p.projectId === projectId ? updatedProject : p)),
       );
@@ -324,7 +343,6 @@ export const ProjectsProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await apiClient.get("/projects/inspections");
-      console.log("Response:", response);
       return { ok: true, data: response.inspections || [] };
     } catch (err) {
       const errorMessage = err.message || "Failed to fetch inspections";
@@ -461,9 +479,11 @@ export const ProjectsProvider = ({ children }) => {
 
   const value = {
     projects,
+    dashboardProjects,
     loading,
     error,
     getAll,
+    getDashboardProjects,
     getById,
     createProject,
     updateProject,

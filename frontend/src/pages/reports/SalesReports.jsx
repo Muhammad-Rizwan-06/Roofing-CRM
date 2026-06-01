@@ -61,7 +61,6 @@ const SalesReports = () => {
     );
 
     const wonCount = leads.filter((l) => l.status === "Won").length;
-    console.log("Projects:", projects);
 
     const leadConvertedProjects = projects.filter(
       (p) => p.leadId

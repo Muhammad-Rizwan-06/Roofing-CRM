@@ -78,7 +78,6 @@ const Invoices = () => {
         leadId: project?.leadId ?? null,
       };
 
-      console.log("Saving invoice:", invoiceToSave);
 
       const result = await addInvoiceAPI(invoiceToSave);
 

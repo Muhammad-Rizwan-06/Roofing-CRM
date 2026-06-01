@@ -23,7 +23,6 @@ export const UserProvider = ({ children }) => {
       setError(null);
 
       const response = await apiClient.get("/users");
-      console.log("Fetched employees:", response);
       setEmployees(response);
       return response;
 
@@ -44,7 +43,6 @@ export const UserProvider = ({ children }) => {
 
       const response = await apiClient.post("/users", employeeData);
       const newEmployee = response.user;
-      console.log("New employee created:", newEmployee);
 
       setEmployees((prevEmployees) => [...prevEmployees, newEmployee]);
       return newEmployee;

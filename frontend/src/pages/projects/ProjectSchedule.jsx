@@ -45,7 +45,6 @@ const ProjectSchedule = () => {
       if (e < s) return alert("End date cannot be before start date");
     }
 
-    console.log("Saving schedule for project", editingId, form);
 
     const result = await updateProject(editingId, {
       startDate: form.startDate || "",

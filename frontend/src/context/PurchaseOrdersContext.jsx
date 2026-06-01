@@ -29,7 +29,7 @@ export function PurchaseOrdersProvider({ children }) {
 
       const query = params.toString() ? `?${params.toString()}` : "";
       const res = await apiClient.get(`/purchase-orders${query}`);
-      console.log(res);
+      
       setOrders(res.orders ?? []);
     } catch (e) {
       handleError(e);

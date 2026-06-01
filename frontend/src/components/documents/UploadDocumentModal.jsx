@@ -35,9 +35,6 @@ const UploadDocumentModal = ({
   const inputRef = useRef(null);
 
   useEffect(() => {
-    console.log("=== Modal lifecycle: open =", open);
-    console.log("projects prop:", projects);
-    console.log("prefillProjectId prop:", prefillProjectId);
 
     if (!open) return;
 
@@ -49,10 +46,8 @@ const UploadDocumentModal = ({
     setError(null);
 
     if (prefillProjectId) {
-      console.log("Setting projectId to:", String(prefillProjectId));
       setProjectId(String(prefillProjectId));
     } else {
-      console.log("No prefillProjectId, setting to empty string");
       setProjectId("");
     }
   }, [open, prefillProjectId]);
@@ -90,11 +85,6 @@ const UploadDocumentModal = ({
   const pickFile = () => inputRef.current?.click();
 
   const setPickedFile = (f) => {
-    console.log("=== setPickedFile called ===");
-    console.log("Input file:", f);
-    console.log("File name:", f?.name);
-    console.log("File type:", f?.type);
-    console.log("File size:", f?.size);
 
     if (!f) {
       setFile(null);
@@ -113,7 +103,6 @@ const UploadDocumentModal = ({
       return;
     }
 
-    console.log("=== File passed validation, setting state ===");
     setFile(f);
     setFileName(f.name || "");
     setFileMimeType(f.type || "");
@@ -144,13 +133,6 @@ const UploadDocumentModal = ({
     e.preventDefault();
     setError(null);
 
-    console.log("=== SUBMIT: Initial state ===");
-    console.log("projectId state:", projectId, "type:", typeof projectId);
-    console.log("file state:", file, "type:", typeof file);
-    console.log("file?.name:", file?.name);
-    console.log("file?.type:", file?.type);
-    console.log("file?.size:", file?.size);
-
     if (!projectId) {
       setError("Project is required");
       return;
@@ -166,9 +148,6 @@ const UploadDocumentModal = ({
       return;
     }
 
-    console.log("=== SUBMIT: Validation passed ===");
-    console.log("Found project:", p);
-    console.log("docType:", docType);
 
     setUploading(true);
     try {
@@ -187,11 +166,6 @@ const UploadDocumentModal = ({
           : null,
       };
 
-      console.log("=== SUBMIT: About to call uploadDocument ===");
-      console.log("file:", file);
-      console.log("fileName state:", fileName);
-      console.log("fileMimeType state:", fileMimeType);
-      console.log("meta:", metaToSend);
 
       const uploadedDoc = await uploadDocument(file, {
         ...metaToSend,
@@ -199,7 +173,6 @@ const UploadDocumentModal = ({
         mimeType: fileMimeType || file?.type,
       });
 
-      console.log("Upload successful:", uploadedDoc);
 
       if (onUploaded) {
         onUploaded(uploadedDoc);

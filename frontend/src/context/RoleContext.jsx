@@ -63,7 +63,6 @@ export const RoleProvider = ({ children }) => {
       setError(null);
 
       const response = await apiClient.get("/roles");
-      console.log("Fetched roles:", response);
       setRoles(response);
     } catch (err) {
       setError(err.message);

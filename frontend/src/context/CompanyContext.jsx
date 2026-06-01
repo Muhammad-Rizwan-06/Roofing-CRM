@@ -31,9 +31,7 @@ export const CompanyProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-        console.log("Updating company with data:", updates);
       const response = await apiClient.put("/company", updates);
-      console.log("Updated company data:", response);
       const updatedData = response;
       setCompany((prev) => ({ ...prev, ...updatedData }));
       return { ok: true, data: updatedData };

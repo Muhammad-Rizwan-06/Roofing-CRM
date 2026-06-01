@@ -74,7 +74,6 @@ const Leads = () => {
   };
 
   const deleteLead = async (leadId) => {
-    console.log("Attempting to delete lead with ID:", leadId);
     const confirmed = window.confirm(
       "Are you sure you want to delete this lead?",
     );

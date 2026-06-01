@@ -33,7 +33,7 @@ export default function PortalProjects() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3">
+      <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl shadow flex flex-wrap gap-3">
         <input
           type="text"
           placeholder="Search project..."

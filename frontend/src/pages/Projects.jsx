@@ -146,7 +146,6 @@ const Projects = () => {
     );
     if (!project) return;
 
-    console.log(`Changing status of project ${projectId} to ${newStatus}`);
 
     const result = await updateProject(projectId, {
       status: newStatus,

@@ -116,33 +116,19 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // Context hooks for real APIs
-  const { projects = [] } = useProjects();
-  const { leads = [] } = useLeads();
-  const { estimates = [] } = useEstimates();
-  const { invoices = [] } = useInvoices();
-  const { payments = [] } = usePayments();
-  const { expenses = [] } = useExpenses();
-  const { documents = [] } = useDocuments();
-  const { materials: inventoryMaterials = [] } = useMaterials();
-  const { purchaseOrders = [] } = usePurchaseOrders();
-  const { suppliers = [] } = useSuppliers();
-  const { tasks = [] } = useTasks();
-  const { employees = [] } = useEmployees();
-
-  // Fetch methods
-  const { getAll: fetchProjects } = useProjects();
-  const { getAll: fetchLeads } = useLeads();
-  const { getAllEstimates } = useEstimates();
-  const { getAllInvoices } = useInvoices();
-  const { fetchPayments } = usePayments();
-  const { fetchExpenses } = useExpenses();
-  const { fetchDocuments } = useDocuments();
-  const { fetchMaterials } = useMaterials();
-  const { fetchOrders: fetchPurchaseOrders } = usePurchaseOrders();
-  const { fetchSuppliers } = useSuppliers();
-  const { fetchTasks } = useTasks();
-  const { getAllEmployees } = useEmployees();
+  // Context hooks for real APIs - extract both data and fetch methods
+  const { dashboardProjects: projects = [], getDashboardProjects: fetchProjects } = useProjects();
+  const { leads = [], getAll: fetchLeads } = useLeads();
+  const { estimates = [], getAllEstimates } = useEstimates();
+  const { invoices = [], getAllInvoices } = useInvoices();
+  const { payments = [], fetchPayments } = usePayments();
+  const { expenses = [], fetchExpenses } = useExpenses();
+  const { documents = [], fetchDocuments } = useDocuments();
+  const { materials: inventoryMaterials = [], fetchMaterials } = useMaterials();
+  const { orders: purchaseOrders = [], fetchOrders: fetchPurchaseOrders } = usePurchaseOrders();
+  const { suppliers = [], fetchSuppliers } = useSuppliers();
+  const { tasks = [], fetchTasks } = useTasks();
+  const { employees = [], getAllEmployees } = useEmployees();
   
   const roleName = user?.roleName;
 
@@ -162,24 +148,65 @@ const Dashboard = () => {
   const [activityQuery, setActivityQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Retry helper for intermittent failures
+  const retryFetch = async (fetchFn, name, maxRetries = 2) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fetchFn?.();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error; // Final attempt failed
+        }
+        // Exponential backoff: 300ms, 600ms, etc.
+        const delay = 300 * attempt;
+        console.warn(
+          `[${name}] Attempt ${attempt} failed, retrying in ${delay}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  };
+
   // Fetch all data from APIs on mount and on window focus
   const loadAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchProjects?.(),
-        fetchLeads?.(),
-        getAllEstimates?.(),
-        getAllInvoices?.(),
-        fetchPayments?.(),
-        fetchExpenses?.(),
-        fetchDocuments?.(),
-        fetchMaterials?.(),
-        fetchPurchaseOrders?.(),
-        fetchSuppliers?.(),
-        fetchTasks?.(),
-        getAllEmployees?.(),
+      const results = await Promise.allSettled([
+        retryFetch(fetchProjects, "Projects"),
+        retryFetch(fetchLeads, "Leads"),
+        retryFetch(getAllEstimates, "Estimates"),
+        retryFetch(getAllInvoices, "Invoices"),
+        retryFetch(fetchPayments, "Payments"),
+        retryFetch(fetchExpenses, "Expenses"),
+        retryFetch(fetchDocuments, "Documents"),
+        retryFetch(fetchMaterials, "Materials"),
+        retryFetch(fetchPurchaseOrders, "PurchaseOrders"),
+        retryFetch(fetchSuppliers, "Suppliers"),
+        retryFetch(fetchTasks, "Tasks"),
+        retryFetch(getAllEmployees, "Employees"),
       ]);
+
+      // Log failed requests for debugging
+      const endpoints = [
+        "Projects",
+        "Leads",
+        "Estimates",
+        "Invoices",
+        "Payments",
+        "Expenses",
+        "Documents",
+        "Materials",
+        "PurchaseOrders",
+        "Suppliers",
+        "Tasks",
+        "Employees",
+      ];
+
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.warn(`Failed to fetch ${endpoints[index]}:`, result.reason);
+        }
+      });
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -279,13 +306,13 @@ const Dashboard = () => {
 
     const tasksFromProjects = (projects || []).flatMap((p) =>
       (p.tasks || []).map((t) => ({
-        id: `${p.id}-${t.id}`,
+        id: `${p.projectId}-${t.taskId}`,
         title: t.title ?? t.name ?? "Task",
         status: t.status || "Pending",
         employeeId: t.employeeId,
         worker: t.worker,
         assigned: t.assigned,
-        projectId: p.id,
+        projectId: p.projectId,
       }))
     );
 
@@ -302,7 +329,7 @@ const Dashboard = () => {
       (employees || []).find((e) => normalize(e.email) && normalize(e.email) === myEmail) ||
       (employees || []).find((e) => normalize(e.name) === myName);
 
-    const myEmployeeId = myEmployee?.id;
+    const myEmployeeId = myEmployee?.employeeId;
 
     const myTasks = allTasks.filter((t) => {
       const taskEmpId = t.employeeId ?? t.assignedEmployeeId ?? t.assignedToId;
@@ -331,10 +358,10 @@ const Dashboard = () => {
       const hasMeInWorkers = (p.workers || []).some(
         (w) => normalize(w.name) && normalize(w.name) === myName
       );
-      if (hasMeInWorkers) myProjectIdSet.add(String(p.id));
+      if (hasMeInWorkers) myProjectIdSet.add(String(p.projectId));
     });
 
-    const myProjects = projects.filter((p) => myProjectIdSet.has(String(p.id)));
+    const myProjects = projects.filter((p) => myProjectIdSet.has(String(p.projectId)));
     const myActiveJobs = myProjects.filter((p) => p.status !== "Completed").length;
 
     // ----- Charts data -----
@@ -417,7 +444,7 @@ const Dashboard = () => {
 
     leads.forEach((l) => {
       push({
-        id: `lead-${l.id}`,
+        id: `lead-${l.leadId}`,
         at: l.updatedAt || l.createdAt,
         module: "CRM",
         action: "Lead Updated",
@@ -426,7 +453,7 @@ const Dashboard = () => {
       });
       if (l.createdAt) {
         push({
-          id: `lead-created-${l.id}`,
+          id: `lead-created-${l.leadId}`,
           at: l.createdAt,
           module: "CRM",
           action: "Lead Created",
@@ -438,33 +465,33 @@ const Dashboard = () => {
 
     invoices.forEach((inv) => {
       push({
-        id: `inv-${inv.id}`,
+        id: `inv-${inv.invoiceId}`,
         at: inv.issueDate || inv.createdAt,
         module: "Finance",
         action: "Invoice Issued",
-        title: `${inv.invoiceNo || inv.id} • ${inv.customer || inv.projectName || "Invoice"}`,
+        title: `${inv.invoiceNo || inv.invoiceId} • ${inv.customer || inv.projectName || "Invoice"}`,
         route: "/finance/invoices",
       });
     });
 
     payments.forEach((p) => {
       push({
-        id: `pay-${p.id}`,
+        id: `pay-${p.paymentId}`,
         at: p.date,
         module: "Finance",
         action: "Payment Recorded",
-        title: `${p.paymentNo || p.id} • ${money(p.amount)} • ${p.customer || p.projectName || ""}`,
+        title: `${p.paymentNo || p.paymentId} • ${money(p.amount)} • ${p.customer || p.projectName || ""}`,
         route: "/finance/payments",
       });
     });
 
     expenses.forEach((e) => {
       push({
-        id: `exp-${e.id}`,
+        id: `exp-${e.expenseId}`,
         at: e.date,
         module: "Finance",
         action: "Expense Added",
-        title: `${e.expenseNo || e.id} • ${money(e.amount)} • ${e.category || ""}`,
+        title: `${e.expenseNo || e.expenseId} • ${money(e.amount)} • ${e.category || ""}`,
         route: "/finance/expenses",
       });
     });
@@ -472,7 +499,7 @@ const Dashboard = () => {
     const docs = documents || [];
     docs.forEach((d) => {
       push({
-        id: `doc-${d.id}`,
+        id: `doc-${d.documentId}`,
         at: d.uploadedAt,
         module: "Documents",
         action: `${(d.type || "document").toUpperCase()} Uploaded`,
@@ -487,7 +514,7 @@ const Dashboard = () => {
 
       if (d.type === "contract" && d.signedAt) {
         push({
-          id: `doc-signed-${d.id}`,
+          id: `doc-signed-${d.documentId}`,
           at: d.signedAt,
           module: "Documents",
           action: "Contract Signed",
@@ -498,9 +525,9 @@ const Dashboard = () => {
     });
 
     tasksFromOperations.forEach((t) => {
-      const createdAt = safeIso(new Date(Number(t.id))) || null;
+      const createdAt = safeIso(new Date(Number(t.taskId))) || null;
       push({
-        id: `task-${t.id}`,
+        id: `task-${t.taskId}`,
         at: createdAt,
         module: "Operations",
         action: "Task Created",
@@ -511,11 +538,11 @@ const Dashboard = () => {
 
     purchaseOrders.forEach((po) => {
       push({
-        id: `po-${po.id}`,
+        id: `po-${po.orderId}`,
         at: po.issueDate || po.createdAt || po.updatedAt,
         module: "Inventory",
         action: "Purchase Order Updated",
-        title: `${po.poNo || po.id} • ${po.status || ""}`,
+        title: `${po.poNo || po.orderId} • ${po.status || ""}`,
         route: "/inventory/purchase-orders",
       });
     });
@@ -525,10 +552,10 @@ const Dashboard = () => {
 
     if (isWorker) {
       // Worker: only operations activity (my tasks only)
-      const myTaskIds = new Set(myTasks.map((t) => String(t.id)));
+      const myTaskIds = new Set(myTasks.map((t) => String(t.taskId)));
       roleActivities = activities.filter((a) => {
         if (a.module !== "Operations") return false;
-        const idPart = String(a.id).replace("task-", "");
+        const idPart = String(a.taskId).replace("task-", "");
         return myTaskIds.has(idPart);
       });
     } else if (isSales) {

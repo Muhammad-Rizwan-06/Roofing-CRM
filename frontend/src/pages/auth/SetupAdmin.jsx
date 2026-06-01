@@ -23,7 +23,6 @@ const SetupAdmin = () => {
       try {
         const existingUsers = await apiClient.get("/users");
 
-        console.log("Existing users:", existingUsers);
 
         if (Array.isArray(existingUsers) && existingUsers.length > 0) {
           navigate("/login");
@@ -61,13 +60,10 @@ const SetupAdmin = () => {
       startDate: new Date().toISOString(),
     };
 
-    console.log("Creating admin user...");
     try {
       const res = await apiClient.post("/users", adminUser);
-      console.log("Admin created successfully:", res);
       navigate("/login");
     } catch (error) {
-      console.error("Error creating admin:", error);
       const errorMessage = error.message || "Failed to create admin user. Check if API is running.";
       alert(errorMessage);
     }

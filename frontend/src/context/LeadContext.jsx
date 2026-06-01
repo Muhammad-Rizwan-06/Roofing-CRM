@@ -53,7 +53,6 @@ export const LeadsProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await apiClient.post("/leads", leadData);
-      console.log("Lead created:", response);
       const newLead = response.item || response;
 
       setLeads((prev) => [...prev, newLead]);

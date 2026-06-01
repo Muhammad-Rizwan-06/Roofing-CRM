@@ -163,7 +163,6 @@ const PurchaseOrders = () => {
   };
 
   const deletePO = async (poId) => {
-    console.log("Attempting to delete PO with ID:", poId);
     if (!canManagePO) return;
     const ok = confirm("Delete this Purchase Order?");
     if (!ok) return;
