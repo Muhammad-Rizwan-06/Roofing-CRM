@@ -15,6 +15,18 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
+import { useProjects } from "../context/ProjectsContext";
+import { useLeads } from "../context/LeadContext";
+import { useEstimates } from "../context/EstimatesContext";
+import { useInvoices } from "../context/InvoicesContext";
+import { usePayments } from "../context/PaymentsContext";
+import { useExpenses } from "../context/ExpensesContext";
+import { useDocuments } from "../context/DocumentsContext";
+import { useMaterials } from "../context/MaterialsContext";
+import { usePurchaseOrders } from "../context/PurchaseOrdersContext";
+import { useSuppliers } from "../context/SuppliersContext";
+import { useTasks } from "../context/TasksContext";
+import { useEmployees } from "../context/EmployeesContext";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -103,6 +115,35 @@ const badgeClassByModule = (m) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Context hooks for real APIs
+  const { projects = [] } = useProjects();
+  const { leads = [] } = useLeads();
+  const { estimates = [] } = useEstimates();
+  const { invoices = [] } = useInvoices();
+  const { payments = [] } = usePayments();
+  const { expenses = [] } = useExpenses();
+  const { documents = [] } = useDocuments();
+  const { materials: inventoryMaterials = [] } = useMaterials();
+  const { purchaseOrders = [] } = usePurchaseOrders();
+  const { suppliers = [] } = useSuppliers();
+  const { tasks = [] } = useTasks();
+  const { employees = [] } = useEmployees();
+
+  // Fetch methods
+  const { getAll: fetchProjects } = useProjects();
+  const { getAll: fetchLeads } = useLeads();
+  const { getAllEstimates } = useEstimates();
+  const { getAllInvoices } = useInvoices();
+  const { fetchPayments } = usePayments();
+  const { fetchExpenses } = useExpenses();
+  const { fetchDocuments } = useDocuments();
+  const { fetchMaterials } = useMaterials();
+  const { fetchOrders: fetchPurchaseOrders } = usePurchaseOrders();
+  const { fetchSuppliers } = useSuppliers();
+  const { fetchTasks } = useTasks();
+  const { getAllEmployees } = useEmployees();
+  
   const roleName = user?.roleName;
 
   const safeRole = useMemo(() => {
@@ -119,50 +160,31 @@ const Dashboard = () => {
 
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityQuery, setActivityQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const [data, setData] = useState({
-    projects: [],
-    leads: [],
-    estimates: [],
-    invoices: [],
-    payments: [],
-    expenses: [],
-    documentsMeta: [],
-    inventoryMaterials: [],
-    suppliers: [],
-    purchaseOrders: [],
-    tasks: [],
-    employees: [],
-  });
-
-  // Helper to safely parse localStorage data and ensure it's always an array
-  const safeParse = (key) => {
+  // Fetch all data from APIs on mount and on window focus
+  const loadAll = async () => {
+    setLoading(true);
     try {
-      const data = JSON.parse(localStorage.getItem(key));
-      // Handle old format { list: [...] } and ensure it's always an array
-      if (Array.isArray(data)) return data;
-      if (data?.list && Array.isArray(data.list)) return data.list;
-      return [];
-    } catch {
-      return [];
+      await Promise.all([
+        fetchProjects?.(),
+        fetchLeads?.(),
+        getAllEstimates?.(),
+        getAllInvoices?.(),
+        fetchPayments?.(),
+        fetchExpenses?.(),
+        fetchDocuments?.(),
+        fetchMaterials?.(),
+        fetchPurchaseOrders?.(),
+        fetchSuppliers?.(),
+        fetchTasks?.(),
+        getAllEmployees?.(),
+      ]);
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const loadAll = () => {
-    setData({
-      projects: safeParse("projects"),
-      leads: safeParse("leads"),
-      estimates: safeParse("estimates"),
-      invoices: safeParse("invoices"),
-      payments: safeParse("payments"),
-      expenses: safeParse("expenses"),
-      documentsMeta: safeParse("documents_meta"),
-      inventoryMaterials: safeParse("inventory_materials"),
-      suppliers: safeParse("suppliers"),
-      purchaseOrders: safeParse("purchase_orders"),
-      tasks: safeParse("tasks"),
-      employees: safeParse("employees"),
-    });
   };
 
   useEffect(() => {
@@ -175,20 +197,7 @@ const Dashboard = () => {
   const COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6", "#14b8a6"];
 
   const computed = useMemo(() => {
-    const {
-      projects,
-      leads,
-      estimates,
-      invoices,
-      payments,
-      expenses,
-      documentsMeta,
-      inventoryMaterials,
-      suppliers,
-      purchaseOrders,
-      tasks,
-      employees,
-    } = data;
+    // Use context data directly
 
     // ----- Projects core -----
     let contractValue = 0;
@@ -250,7 +259,7 @@ const Dashboard = () => {
     const acceptedEstimatesCount = (estimates || []).filter((e) => e.status === "Accepted").length;
 
     // ----- Documents -----
-    const docsCount = documentsMeta.length;
+    const docsCount = documents.length;
 
     // ----- Inventory KPIs -----
     const lowStockCount = (inventoryMaterials || []).filter((m) => {
@@ -460,7 +469,7 @@ const Dashboard = () => {
       });
     });
 
-    const docs = documentsMeta || [];
+    const docs = documents || [];
     docs.forEach((d) => {
       push({
         id: `doc-${d.id}`,
@@ -583,7 +592,7 @@ const Dashboard = () => {
         recent: recentActivity,
       },
     };
-  }, [data, user?.email, user?.name, isWorker, isSales, isPM, isAccountant]);
+  }, [projects, leads, estimates, invoices, payments, expenses, documents, inventoryMaterials, purchaseOrders, suppliers, tasks, employees, user?.email, user?.name, isWorker, isSales, isPM, isAccountant]);
 
   // ✅ Role-based widget visibility (industry)
   const showFinance = isAdmin || isAccountant;        // finance KPIs & charts
