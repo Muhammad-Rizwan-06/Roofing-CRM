@@ -1,30 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
-
-const lsGet = (key, fallback = []) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+import { usePurchaseOrders } from "../../context/PurchaseOrdersContext";
+import { useSuppliers } from "../../context/SuppliersContext";
+import { useMaterials } from "../../context/MaterialsContext";
+import { useProjects } from "../../context/ProjectsContext";
 
 const calcTotal = (items = []) =>
   items.reduce((s, it) => s + Number(it.qty || 0) * Number(it.unitCost || 0), 0);
 
-const nextNo = (prefix, list, field) => {
-  const max = (list || []).reduce((m, x) => {
-    const n = Number(String(x[field] || "").replace(prefix + "-", "")) || 0;
-    return Math.max(m, n);
-  }, 0);
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-};
-
 const PurchaseOrders = () => {
   const { user } = useAuth();
+  const { orders, loading, error, fetchOrders, addOrder, setStatus: setStatusAPI, markReceived: markReceivedAPI, deleteOrder } = usePurchaseOrders();
+  const { suppliers, fetchSuppliers } = useSuppliers();
+  const { materials, fetchMaterials } = useMaterials();
+  const { projects, getAll: fetchProjects } = useProjects();
   const roleName = user?.roleName;
 
   const isAdmin = roleName === ROLE.ADMIN;
@@ -35,16 +25,7 @@ const PurchaseOrders = () => {
   const canManagePO = isAdmin || isPM;
   const readOnly = isAccountant;
 
-  const [suppliers] = useState(() => lsGet("suppliers", []));
-  const [projects] = useState(() => lsGet("projects", []));
-
-  const [purchaseOrders, setPurchaseOrders] = useState(() =>
-    lsGet("purchase_orders", [])
-  );
-
-  const [inventoryMaterials, setInventoryMaterials] = useState(() =>
-    lsGet("inventory_materials", [])
-  );
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     supplierId: "",
@@ -57,16 +38,21 @@ const PurchaseOrders = () => {
     ],
   });
 
-  useEffect(() => lsSet("purchase_orders", purchaseOrders), [purchaseOrders]);
-  useEffect(() => lsSet("inventory_materials", inventoryMaterials), [inventoryMaterials]);
+  // Load all data on mount
+  useEffect(() => {
+    fetchOrders();
+    fetchSuppliers();
+    fetchMaterials();
+    fetchProjects();
+  }, []);
 
   const supplier = useMemo(
-    () => suppliers.find((s) => String(s.id) === String(form.supplierId)),
+    () => suppliers.find((s) => String(s.supplierId) === String(form.supplierId)),
     [suppliers, form.supplierId]
   );
 
   const project = useMemo(
-    () => projects.find((p) => String(p.id) === String(form.projectId)),
+    () => projects.find((p) => String(p.projectId) === String(form.projectId)),
     [projects, form.projectId]
   );
 
@@ -80,7 +66,7 @@ const PurchaseOrders = () => {
       items[idx] = { ...items[idx], [key]: value };
 
       if (key === "materialId") {
-        const mat = inventoryMaterials.find((m) => String(m.id) === String(value));
+        const mat = materials.find((m) => String(m.materialId) === String(value));
         if (mat) {
           items[idx].materialName = mat.name || "";
           if (!Number(items[idx].unitCost)) {
@@ -116,7 +102,7 @@ const PurchaseOrders = () => {
     }));
   };
 
-  const createPO = (e) => {
+  const createPO = async (e) => {
     e.preventDefault();
     if (!canManagePO) return;
 
@@ -128,115 +114,80 @@ const PurchaseOrders = () => {
     );
     if (invalid) return alert("Each item must have Material Name and Qty > 0");
 
-    const po = {
-      id: Date.now(),
-      poNo: nextNo("PO", purchaseOrders, "poNo"),
-      supplierId: Number(form.supplierId),
+    const payload = {
+      supplierId: (form.supplierId),
       supplierName: supplier?.name || "",
-      projectId: form.projectId ? Number(form.projectId) : null,
+      projectId: form.projectId ? (form.projectId) : null,
       projectName: project?.name || "",
-      status: "Draft",
       issueDate: form.issueDate,
       expectedDate: form.expectedDate || "",
       notes: form.notes || "",
       items: form.items.map((it) => ({
-        materialId: it.materialId ? Number(it.materialId) : null,
+        materialId: it.materialId ? (it.materialId) : null,
         materialName: (it.materialName || "").trim(),
         description: (it.description || "").trim(),
         qty: Number(it.qty || 0),
         unitCost: Number(it.unitCost || 0),
       })),
-      total: Number(total || 0),
-      createdAt: new Date().toISOString(),
-      receivedAt: null,
     };
 
-    setPurchaseOrders((prev) => [po, ...prev]);
+    try {
+      setIsSaving(true);
+      await addOrder(payload);
 
-    setForm({
-      supplierId: "",
-      projectId: "",
-      issueDate: new Date().toISOString().slice(0, 10),
-      expectedDate: "",
-      notes: "",
-      items: [{ materialId: "", materialName: "", description: "", qty: 1, unitCost: 0 }],
-    });
+      setForm({
+        supplierId: "",
+        projectId: "",
+        issueDate: new Date().toISOString().slice(0, 10),
+        expectedDate: "",
+        notes: "",
+        items: [{ materialId: "", materialName: "", description: "", qty: 1, unitCost: 0 }],
+      });
+    } catch (err) {
+      console.error("Error creating PO:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const setStatus = (poId, status) => {
+  const setStatus = async (poId, status) => {
     if (!canManagePO) return;
-    setPurchaseOrders((prev) => prev.map((p) => (p.id === poId ? { ...p, status } : p)));
+    try {
+      setIsSaving(true);
+      await setStatusAPI(poId, status);
+    } catch (err) {
+      console.error("Error updating status:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const deletePO = (poId) => {
+  const deletePO = async (poId) => {
+    console.log("Attempting to delete PO with ID:", poId);
     if (!canManagePO) return;
     const ok = confirm("Delete this Purchase Order?");
     if (!ok) return;
-    setPurchaseOrders((prev) => prev.filter((p) => p.id !== poId));
+    try {
+      setIsSaving(true);
+      await deleteOrder(poId);
+    } catch (err) {
+      console.error("Error deleting PO:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const markReceived = (po) => {
+  const markReceived = async (poId) => {
     if (!canManagePO) return;
-    if (po.status === "Received") return;
 
-    // 1) Update inventory stock
-    setInventoryMaterials((prev) => {
-      const updated = [...prev];
-
-      po.items.forEach((it) => {
-        if (it.materialId) {
-          const idx = updated.findIndex((m) => Number(m.id) === Number(it.materialId));
-          if (idx >= 0) {
-            updated[idx] = {
-              ...updated[idx],
-              onHand: Number(updated[idx].onHand || 0) + Number(it.qty || 0),
-              unitPrice: Number(it.unitCost || updated[idx].unitPrice || 0),
-              updatedAt: new Date().toISOString(),
-            };
-            return;
-          }
-        }
-
-        const newMat = {
-          id: Date.now() + Math.floor(Math.random() * 1000),
-          name: it.materialName,
-          unitPrice: Number(it.unitCost || 0),
-          onHand: Number(it.qty || 0),
-          reorderLevel: 0,
-          supplierId: po.supplierId || "",
-          notes: `Created from PO ${po.poNo}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        updated.push(newMat);
-      });
-
-      return updated;
-    });
-
-    // 2) Auto-create Expense if projectId exists
-    if (po.projectId) {
-      const expenses = lsGet("expenses", []);
-      const expense = {
-        id: Date.now(),
-        expenseNo: nextNo("EXP", expenses, "expenseNo"),
-        projectId: po.projectId,
-        projectName: po.projectName,
-        vendor: po.supplierName,
-        category: "Materials",
-        date: new Date().toISOString().slice(0, 10),
-        amount: Number(po.total || 0),
-        note: `Auto from PO ${po.poNo}`,
-      };
-      lsSet("expenses", [...expenses, expense]);
+    try {
+      setIsSaving(true);
+      await markReceivedAPI(poId);
+    } catch (err) {
+      console.error("Error marking received:", err);
+    } finally {
+      setIsSaving(false);
     }
-
-    // 3) Update PO status + receivedAt
-    setPurchaseOrders((prev) =>
-      prev.map((p) =>
-        p.id === po.id ? { ...p, status: "Received", receivedAt: new Date().toISOString() } : p
-      )
-    );
   };
 
   const badge = (status) => {
@@ -254,12 +205,16 @@ const PurchaseOrders = () => {
           Purchase Orders
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-300">
-          Draft → Sent → Received. Receiving updates inventory stock and (if linked to a project) creates a Materials expense.
+          Draft → Sent → Received. Receiving updates inventory stock and (if
+          linked to a project) creates a Materials expense.
         </p>
         {readOnly && (
           <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
             Read-only access for Accountant role.
           </p>
+        )}
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
         )}
       </div>
 
@@ -274,12 +229,15 @@ const PurchaseOrders = () => {
               <label className="text-xs text-gray-500">Supplier *</label>
               <select
                 value={form.supplierId}
-                onChange={(e) => setForm((p) => ({ ...p, supplierId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, supplierId: e.target.value }))
+                }
                 className="w-full mt-1 border p-2 rounded bg-white dark:bg-gray-950 dark:text-white"
+                disabled={isSaving}
               >
                 <option value="">Select supplier</option>
                 {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.supplierId} value={s.supplierId}>
                     {s.name}
                   </option>
                 ))}
@@ -287,21 +245,27 @@ const PurchaseOrders = () => {
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Project (optional)</label>
+              <label className="text-xs text-gray-500">
+                Project (optional)
+              </label>
               <select
                 value={form.projectId}
-                onChange={(e) => setForm((p) => ({ ...p, projectId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, projectId: e.target.value }))
+                }
                 className="w-full mt-1 border p-2 rounded bg-white dark:bg-gray-950 dark:text-white"
+                disabled={isSaving}
               >
                 <option value="">No project</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.projectId} value={p.projectId}>
                     {p.name} — {p.client}
                   </option>
                 ))}
               </select>
               <p className="text-[11px] text-gray-500 mt-1">
-                If selected, “Mark Received” auto-creates an Expense for job costing.
+                If selected, “Mark Received” auto-creates an Expense for job
+                costing.
               </p>
             </div>
 
@@ -310,8 +274,11 @@ const PurchaseOrders = () => {
               <input
                 type="date"
                 value={form.issueDate}
-                onChange={(e) => setForm((p) => ({ ...p, issueDate: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, issueDate: e.target.value }))
+                }
                 className="w-full mt-1 border p-2 rounded bg-white dark:bg-gray-950 dark:text-white"
+                disabled={isSaving}
               />
             </div>
 
@@ -320,8 +287,11 @@ const PurchaseOrders = () => {
               <input
                 type="date"
                 value={form.expectedDate}
-                onChange={(e) => setForm((p) => ({ ...p, expectedDate: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, expectedDate: e.target.value }))
+                }
                 className="w-full mt-1 border p-2 rounded bg-white dark:bg-gray-950 dark:text-white"
+                disabled={isSaving}
               />
             </div>
 
@@ -329,9 +299,12 @@ const PurchaseOrders = () => {
               <label className="text-xs text-gray-500">Notes</label>
               <input
                 value={form.notes}
-                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, notes: e.target.value }))
+                }
                 className="w-full mt-1 border p-2 rounded bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="Optional notes"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -345,7 +318,8 @@ const PurchaseOrders = () => {
               <button
                 type="button"
                 onClick={addItemRow}
-                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSaving}
               >
                 + Add Item
               </button>
@@ -357,12 +331,17 @@ const PurchaseOrders = () => {
                   <select
                     className="col-span-12 md:col-span-3 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                     value={it.materialId || ""}
-                    onChange={(e) => updateItem(idx, "materialId", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(idx, "materialId", e.target.value)
+                    }
                     title="Link to inventory material (optional)"
+                    disabled={isSaving}
                   >
-                    <option value="">(Optional) Select inventory material</option>
-                    {inventoryMaterials.map((m) => (
-                      <option key={m.id} value={m.id}>
+                    <option value="">
+                      (Optional) Select inventory material
+                    </option>
+                    {materials.map((m) => (
+                      <option key={m.materialId} value={m.materialId}>
                         {m.name} (OnHand: {Number(m.onHand || 0)})
                       </option>
                     ))}
@@ -372,14 +351,20 @@ const PurchaseOrders = () => {
                     className="col-span-12 md:col-span-3 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                     placeholder="Material Name *"
                     value={it.materialName}
-                    onChange={(e) => updateItem(idx, "materialName", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(idx, "materialName", e.target.value)
+                    }
+                    disabled={isSaving}
                   />
 
                   <input
                     className="col-span-12 md:col-span-3 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                     placeholder="Description"
                     value={it.description}
-                    onChange={(e) => updateItem(idx, "description", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(idx, "description", e.target.value)
+                    }
+                    disabled={isSaving}
                   />
 
                   <input
@@ -388,6 +373,7 @@ const PurchaseOrders = () => {
                     placeholder="Qty"
                     value={it.qty}
                     onChange={(e) => updateItem(idx, "qty", e.target.value)}
+                    disabled={isSaving}
                   />
 
                   <input
@@ -395,13 +381,17 @@ const PurchaseOrders = () => {
                     className="col-span-6 md:col-span-1 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                     placeholder="Unit Cost"
                     value={it.unitCost}
-                    onChange={(e) => updateItem(idx, "unitCost", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(idx, "unitCost", e.target.value)
+                    }
+                    disabled={isSaving}
                   />
 
                   <button
                     type="button"
                     onClick={() => removeItemRow(idx)}
-                    className="col-span-12 md:col-span-1 text-red-600 hover:underline text-sm justify-self-end"
+                    className="col-span-12 md:col-span-1 text-red-600 hover:underline text-sm justify-self-end disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSaving}
                   >
                     Remove
                   </button>
@@ -418,8 +408,12 @@ const PurchaseOrders = () => {
             </div>
           </div>
 
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-700">
-            Create Purchase Order
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? "Creating..." : "Create Purchase Order"}
           </button>
         </form>
       )}
@@ -444,18 +438,22 @@ const PurchaseOrders = () => {
           </thead>
 
           <tbody>
-            {purchaseOrders.map((po) => (
+            {orders.map((po) => (
               <tr
-                key={po.id}
+                key={po.orderId}
                 className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
               >
                 <td className="px-4 py-3 font-medium">{po.poNo}</td>
                 <td className="px-4 py-3">{po.supplierName}</td>
                 <td className="px-4 py-3">{po.projectName || "—"}</td>
                 <td className="px-4 py-3">{po.issueDate}</td>
-                <td className="px-4 py-3">${Number(po.total || 0).toFixed(2)}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-3 py-1 text-xs rounded-full ${badge(po.status)}`}>
+                  ${Number(po.total || 0).toFixed(2)}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`px-3 py-1 text-xs rounded-full ${badge(po.status)}`}
+                  >
                     {po.status}
                   </span>
                 </td>
@@ -464,8 +462,9 @@ const PurchaseOrders = () => {
                   <td className="px-4 py-3 text-right space-x-3">
                     {po.status === "Draft" && (
                       <button
-                        className="text-indigo-600 hover:underline"
-                        onClick={() => setStatus(po.id, "Sent")}
+                        className="text-indigo-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setStatus(po.orderId, "Sent")}
+                        disabled={isSaving}
                       >
                         Mark Sent
                       </button>
@@ -473,25 +472,28 @@ const PurchaseOrders = () => {
 
                     {po.status !== "Received" && po.status !== "Cancelled" && (
                       <button
-                        className="text-green-600 hover:underline"
-                        onClick={() => markReceived(po)}
+                        className="text-green-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => markReceived(po.orderId)}
+                        disabled={isSaving}
                       >
                         Mark Received
                       </button>
                     )}
 
-                    {po.status !== "Received" && (
+                    {po.status !== "Received" && po.status !== "Cancelled" &&(
                       <button
-                        className="text-orange-600 hover:underline"
-                        onClick={() => setStatus(po.id, "Cancelled")}
+                        className="text-orange-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setStatus(po.orderId, "Cancelled")}
+                        disabled={isSaving}
                       >
                         Cancel
                       </button>
                     )}
 
                     <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deletePO(po.id)}
+                      className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => deletePO(po.orderId)}
+                      disabled={isSaving}
                     >
                       Delete
                     </button>
@@ -500,9 +502,12 @@ const PurchaseOrders = () => {
               </tr>
             ))}
 
-            {purchaseOrders.length === 0 && (
+            {orders.length === 0 && (
               <tr>
-                <td colSpan={canManagePO ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                <td
+                  colSpan={canManagePO ? 7 : 6}
+                  className="px-4 py-8 text-center text-gray-500"
+                >
                   No purchase orders yet.
                 </td>
               </tr>

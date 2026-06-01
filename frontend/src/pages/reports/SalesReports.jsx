@@ -10,7 +10,11 @@ import {
   XAxis,
   Legend,
 } from "recharts";
-import { safeParse } from "../../utils/storageHelper";
+import { useEffect } from "react"; 
+import { useLeads } from "../../context/LeadContext";
+import { useEstimates } from "../../context/EstimatesContext";
+import { useProjects } from "../../context/ProjectsContext";
+
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -29,9 +33,15 @@ const COLORS = [
 ];
 
 const SalesReports = () => {
-  const leads = useMemo(() => safeParse("leads"), []);
-  const estimates = useMemo(() => safeParse("estimates"), []);
-  const projects = useMemo(() => safeParse("projects"), []);
+    const { leads, getAll: fetchLeads } = useLeads();
+    const { estimates, getAllEstimates } = useEstimates();
+    const { projects, getAll: fetchProjects } = useProjects();
+
+    useEffect(() => {
+      fetchLeads();
+      getAllEstimates();
+      fetchProjects();
+    }, []);
 
   const { stageData, kpis, estimateStatusData } = useMemo(() => {
     const stageCounts = leads.reduce((acc, l) => {
@@ -51,9 +61,10 @@ const SalesReports = () => {
     );
 
     const wonCount = leads.filter((l) => l.status === "Won").length;
+    console.log("Projects:", projects);
 
     const leadConvertedProjects = projects.filter(
-      (p) => p.source === "Lead Conversion",
+      (p) => p.leadId
     ).length;
 
     const estStatusCounts = estimates.reduce((acc, e) => {

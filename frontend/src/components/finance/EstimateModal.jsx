@@ -34,11 +34,11 @@ const EstimateModal = ({
     if (!open) return;
 
     if (prefillLeadId) {
-      const lead = leads.find((l) => String(l.id) === String(prefillLeadId));
+      const lead = leads.find((l) => (l.leadId) === (prefillLeadId));
       if (lead) {
         setForm((p) => ({
           ...p,
-          leadId: String(lead.id),
+          leadId: String(lead.leadId),
           leadName: lead.name || "",
           customer: lead.name || p.customer,
         }));
@@ -54,7 +54,7 @@ const EstimateModal = ({
   const total = useMemo(() => subtotal + tax, [subtotal, tax]);
 
   const onPickLead = (leadId) => {
-    const l = leads.find((x) => String(x.id) === String(leadId));
+    const l = leads.find((x) => (x.leadId) === (leadId));
     setForm((prev) => ({
       ...prev,
       leadId,
@@ -64,7 +64,7 @@ const EstimateModal = ({
   };
 
   const onPickProject = (projectId) => {
-    const p = projects.find((x) => String(x.id) === String(projectId));
+    const p = projects.find((x) => (x.projectId) === (projectId));
     setForm((prev) => ({
       ...prev,
       projectId,
@@ -98,8 +98,8 @@ const EstimateModal = ({
 
     onSave({
       ...form,
-      leadId: form.leadId ? Number(form.leadId) : null,
-      projectId: form.projectId ? Number(form.projectId) : null,
+      leadId: form.leadId ? form.leadId : null,
+      projectId: form.projectId ? form.projectId : null,
       taxRate: Number(form.taxRate || 0),
       items: form.items.map((it) => ({
         description: it.description.trim(),
@@ -140,7 +140,7 @@ const EstimateModal = ({
               >
                 <option value="">Select lead</option>
                 {leads.map((l) => (
-                  <option key={l.id} value={l.id}>
+                  <option key={l.leadId} value={l.leadId}>
                     {l.name}
                   </option>
                 ))}
@@ -160,7 +160,7 @@ const EstimateModal = ({
               >
                 <option value="">Select project</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.projectId} value={p.projectId}>
                     {p.name}
                   </option>
                 ))}

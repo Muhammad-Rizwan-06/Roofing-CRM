@@ -1,14 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import UploadDocumentModal from "../../components/documents/UploadDocumentModal";
-import { deleteFile, getFile } from "../../utils/idbFileStore";
-import {
-  addDocumentMeta,
-  deleteDocumentMeta,
-  getDocumentsMeta,
-} from "../../utils/documentsMetaStore";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
+import { useDocuments } from "../../context/DocumentsContext";
+import { useProjects } from "../../context/ProjectsContext";
 
 const Attachments = () => {
   const { user } = useAuth();
@@ -23,49 +19,56 @@ const Attachments = () => {
   const newUpload = searchParams.get("new") === "1";
 
   const [open, setOpen] = useState(false);
-  const [projects] = useState(() => JSON.parse(localStorage.getItem("projects")) || []);
-  const [docs, setDocs] = useState(() => getDocumentsMeta());
 
-  useEffect(() => setDocs(getDocumentsMeta()), []);
+  const {
+    documents,
+    loading,
+    error,
+    fetchDocuments,
+    uploadDocument,
+    deleteDocument,
+  } = useDocuments();
+
+  const { projects, getAll: fetchProjects } = useProjects();
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchDocuments({ projectId: projectId || undefined, type: "attachment" });
+    fetchProjects();
+  }, [projectId]);
 
   useEffect(() => {
-    // Auto-open only if role can upload
     if (newUpload && canUpload) setOpen(true);
   }, [newUpload, canUpload]);
 
-  const filtered = useMemo(() => {
-    const list = docs.filter((d) => d.type === "attachment");
-    if (!projectId) return list;
-    return list.filter((d) => String(d.projectId) === String(projectId));
-  }, [docs, projectId]);
+  const filtered = useMemo(() =>
+    documents.filter((d) => d.type === "attachment"),
+  [documents]);
 
-  const uploadMeta = (meta) => {
-    addDocumentMeta(meta);
-    setDocs(getDocumentsMeta());
+  // ── Handlers ──────────────────────────────────────────────────────────────────
+  const handleUpload = async (uploadedDoc) => {
+    // Document already uploaded by UploadDocumentModal
+    // Just close the modal and refresh if needed
+    setOpen(false);
+    // Re-fetch to ensure UI is in sync with server
+    await fetchDocuments({ projectId: projectId || undefined, type: "attachment" });
     if (projectId) setSearchParams({ projectId });
   };
 
-  const remove = async (id) => {
-    if (!canDelete) {
-      alert("You do not have permission to delete attachments.");
-      return;
-    }
-    await deleteFile(id);
-    deleteDocumentMeta(id);
-    setDocs(getDocumentsMeta());
+  const handleDelete = async (documentId) => {
+    if (!canDelete) { alert("You do not have permission to delete attachments."); return; }
+    await deleteDocument(documentId);
   };
 
-  const download = async (id) => {
-    const rec = await getFile(id);
-    if (!rec?.blob) return alert("File not found in storage");
-    const url = URL.createObjectURL(rec.blob);
+  const download = (doc) => {
+    if (!doc.fileUrl) return alert("File URL not available");
     const a = document.createElement("a");
-    a.href = url;
-    a.download = rec.fileName || "attachment";
+    a.href     = doc.fileUrl;
+    a.download = doc.fileName;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -74,31 +77,29 @@ const Attachments = () => {
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Project-linked files (permits, notes, misc)
           </p>
-
           {!canDelete && canUpload && (
             <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
               Note: You can upload attachments, but deletion is restricted.
             </p>
           )}
         </div>
-
         {canUpload ? (
-          <button
-            onClick={() => setOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
-          >
+          <button onClick={() => setOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">
             + Upload Attachment
           </button>
         ) : (
-          <div className="text-xs text-gray-500 dark:text-gray-300 mt-2">
-            Upload disabled for your role.
-          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-300 mt-2">Upload disabled for your role.</div>
         )}
       </div>
+      {error && (
+        <div className="text-red-600 bg-red-100 dark:bg-red-200 p-3 rounded">
+          Error: {error.message || "Failed to load attachments."}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
         <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Attachment List</div>
-
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
             <tr>
@@ -111,14 +112,11 @@ const Attachments = () => {
           </thead>
           <tbody>
             {filtered.map((d) => (
-              <tr key={d.id} className="border-t border-gray-100 dark:border-gray-800">
+              <tr key={d.documentId} className="border-t border-gray-100 dark:border-gray-800">
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">{d.fileName}</td>
                 <td className="p-3">
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/projects/${d.projectId}`)}
-                    type="button"
-                  >
+                  <button className="text-blue-600 hover:underline" type="button"
+                    onClick={() => navigate(`/projects/${d.projectId}`)}>
                     {d.projectName}
                   </button>
                 </td>
@@ -127,21 +125,17 @@ const Attachments = () => {
                 </td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">{d.notes || "—"}</td>
                 <td className="p-3 text-right space-x-3">
-                  <button className="text-indigo-600 hover:underline" onClick={() => download(d.id)} type="button">
-                    Download
-                  </button>
-
+                  <button className="text-indigo-600 hover:underline" type="button"
+                    onClick={() => download(d)}>Download</button>
                   {canDelete ? (
-                    <button className="text-red-600 hover:underline" onClick={() => remove(d.id)} type="button">
-                      Delete
-                    </button>
+                    <button className="text-red-600 hover:underline" type="button"
+                      onClick={() => handleDelete(d.documentId)}>Delete</button>
                   ) : (
                     <span className="text-gray-400">—</span>
                   )}
                 </td>
               </tr>
             ))}
-
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-300">
@@ -159,7 +153,7 @@ const Attachments = () => {
           setOpen(false);
           if (newUpload) setSearchParams(projectId ? { projectId } : {});
         }}
-        onUploaded={uploadMeta}
+        onUploaded={handleUpload}
         projects={projects}
         docType="attachment"
         prefillProjectId={projectId}

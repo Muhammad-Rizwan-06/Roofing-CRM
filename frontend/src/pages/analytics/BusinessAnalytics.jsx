@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { safeParse } from "../../utils/storageHelper";
+import { useEffect } from "react"; 
+import { usePayments } from "../../context/PaymentsContext";
+import { useExpenses } from "../../context/ExpensesContext";
+import { useInvoices } from "../../context/InvoicesContext";
+import { useProjects } from "../../context/ProjectsContext";
+
 import {
   ResponsiveContainer,
   BarChart,
@@ -53,10 +58,17 @@ const BusinessAnalytics = () => {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
 
-  const payments = useMemo(() => safeParse("payments"), []);
-  const expenses = useMemo(() => safeParse("expenses"), []);
-  const invoices = useMemo(() => safeParse("invoices"), []);
-  const projects = useMemo(() => safeParse("projects"), []);
+  const { payments, fetchPayments } = usePayments();
+  const { expenses, fetchExpenses } = useExpenses();
+  const { invoices, getAllInvoices } = useInvoices();
+  const { projects, getAll: fetchProjects } = useProjects();
+
+  useEffect(() => {
+    fetchPayments();
+    fetchExpenses();
+    getAllInvoices();
+    fetchProjects();
+  }, []);
 
   const { kpis, monthlyData, expenseCategoryData, agingData, topProjects } =
     useMemo(() => {
@@ -153,7 +165,7 @@ const BusinessAnalytics = () => {
             (s, w) => s + Number(w.total ?? w.salary ?? 0),
             0,
           );
-          const extra = Number(expByProject[p.id] || 0);
+          const extra = Number(expByProject[p.projectId] || 0);
           const profit = revenue - (mat + lab + extra);
           return { name: p.name, profit };
         })

@@ -57,7 +57,7 @@ const LeadsTable = ({ leads, onDelete, onConvert }) => {
 
                   <td className="space-x-3 text-right">
                     <button
-                      onClick={() => navigate(`/finance/estimates?leadId=${lead.id}`)}
+                      onClick={() => navigate(`/finance/estimates?leadId=${lead.leadId}`)}
                       className="text-blue-600 hover:underline"
                     >
                       Estimate

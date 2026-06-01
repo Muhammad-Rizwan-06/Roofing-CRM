@@ -8,7 +8,10 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { safeParse } from "../../utils/storageHelper";
+import { useEffect } from "react";
+import { usePayments } from "../../context/PaymentsContext";
+import { useInvoices } from "../../context/InvoicesContext";
+import { useExpenses } from "../../context/ExpensesContext";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -41,18 +44,15 @@ const RevenueReports = () => {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
 
-  const payments = useMemo(
-    () => JSON.parse(localStorage.getItem("payments")) || [],
-    [],
-  );
-  const invoices = useMemo(
-    () => JSON.parse(localStorage.getItem("invoices")) || [],
-    [],
-  );
-  const expenses = useMemo(
-    () => JSON.parse(localStorage.getItem("expenses")) || [],
-    [],
-  );
+  const { payments, fetchPayments } = usePayments();
+  const { invoices, getAllInvoices } = useInvoices();
+  const { expenses, fetchExpenses } = useExpenses();
+
+  useEffect(() => {
+    fetchPayments();
+    getAllInvoices();
+    fetchExpenses();
+  }, []);
 
   const { kpis, chartData } = useMemo(() => {
     // Monthly aggregation

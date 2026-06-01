@@ -26,7 +26,7 @@ const PaymentModal = ({
   });
 
   const selectedInvoice = useMemo(() => {
-    return invoices.find((x) => String(x.id) === String(form.invoiceId));
+    return invoices.find((x) => String(x.invoiceId) === String(form.invoiceId));
   }, [invoices, form.invoiceId]);
 
   const outstanding = useMemo(() => {
@@ -47,7 +47,7 @@ const PaymentModal = ({
     }));
 
     if (prefillInvoiceId) {
-      const inv = invoices.find((x) => String(x.id) === String(prefillInvoiceId));
+      const inv = invoices.find((x) => String(x.invoiceId) === String(prefillInvoiceId));
       if (inv) {
         const total = calcInvoiceTotal(inv);
         const paid = Number(inv.amountPaid || 0);
@@ -55,7 +55,7 @@ const PaymentModal = ({
 
         setForm((p) => ({
           ...p,
-          invoiceId: String(inv.id),
+          invoiceId: String(inv.invoiceId),
           amount: p.amount !== "" ? p.amount : String(due || ""),
         }));
       }
@@ -63,7 +63,7 @@ const PaymentModal = ({
   }, [open, prefillInvoiceId, invoices]);
 
   const onSelectInvoice = (invoiceId) => {
-    const inv = invoices.find((x) => String(x.id) === String(invoiceId));
+    const inv = invoices.find((x) => String(x.invoiceId) === String(invoiceId));
     if (!inv) {
       setForm((p) => ({ ...p, invoiceId }));
       return;
@@ -84,7 +84,7 @@ const PaymentModal = ({
   const submit = (e) => {
     e.preventDefault();
 
-    const inv = invoices.find((x) => String(x.id) === String(form.invoiceId));
+    const inv = invoices.find((x) => String(x.invoiceId) === String(form.invoiceId));
     if (!inv) return alert("Select an invoice");
     if (!form.date) return alert("Payment date is required");
 
@@ -103,7 +103,7 @@ const PaymentModal = ({
     }
 
     onSave({
-      invoiceId: inv.id,
+      invoiceId: inv.invoiceId,
       invoiceNo: inv.invoiceNo,
       customer: inv.customer,
       projectId: inv.projectId ?? null,
@@ -142,7 +142,7 @@ const PaymentModal = ({
             >
               <option value="">Select invoice</option>
               {invoices.map((inv) => (
-                <option key={inv.id} value={inv.id}>
+                <option key={inv.invoiceId} value={inv.invoiceId}>
                   {inv.invoiceNo} — {inv.customer}
                 </option>
               ))}

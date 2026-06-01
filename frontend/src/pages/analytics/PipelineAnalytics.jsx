@@ -10,7 +10,11 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { safeParse } from "../../utils/storageHelper";
+import { useEffect } from "react"; // add to existing React import
+import { useLeads } from "../../context/LeadContext";
+import { useEstimates } from "../../context/EstimatesContext";
+import { useProjects } from "../../context/ProjectsContext";
+
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -47,9 +51,15 @@ const COLORS = [
 ];
 
 const PipelineAnalytics = () => {
-  const leads = useMemo(() => safeParse("leads"), []);
-  const estimates = useMemo(() => safeParse("estimates"), []);
-  const projects = useMemo(() => safeParse("projects"), []);
+    const { leads, getAll: fetchLeads } = useLeads();
+    const { estimates, getAllEstimates } = useEstimates();
+    const { projects, getAll: fetchProjects } = useProjects();
+
+    useEffect(() => {
+      fetchLeads();
+      getAllEstimates();
+      fetchProjects();
+    }, []);
 
   const data = useMemo(() => {
     const stageCounts = {};

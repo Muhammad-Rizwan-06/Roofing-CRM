@@ -1,18 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ExpenseModal from "../../components/finance/ExpenseModal";
-import { expensesMock } from "../../data/financeMockData";
-import { safeParse } from "../../utils/storageHelper";
+import { useExpenses } from "../../context/ExpensesContext";
+import { useProjects } from "../../context/ProjectsContext";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
-
-const nextNo = (prefix, list) => {
-  const max = (list || []).reduce((m, x) => {
-    const n = Number(String(x.expenseNo || "").replace(prefix + "-", "")) || 0;
-    return Math.max(m, n);
-  }, 0);
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-};
 
 const Expenses = () => {
   const navigate = useNavigate();
@@ -21,23 +13,34 @@ const Expenses = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [projects] = useState(() => safeParse("projects"));
+  const {
+    expenses,
+    loading: expensesLoading,
+    error: expensesError,
+    fetchExpenses,
+    addExpense,
+    deleteExpense,
+  } = useExpenses();
 
-  const [expenses, setExpenses] = useState(() => {
-    const stored = JSON.parse(localStorage.getItem("expenses")) || null;
-    return stored ?? expensesMock;
-  });
+  const {
+    projects,
+    loading: projectsLoading,
+    error: projectsError,
+    getAll:  fetchProjects,
+  } = useProjects();
 
-  useEffect(
-    () => localStorage.setItem("expenses", JSON.stringify(expenses)),
-    [expenses],
-  );
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchExpenses();
+    fetchProjects();
+  }, []);
 
-  // Auto-open when navigated from project context
+  // auto-open when navigated from project context
   useEffect(() => {
     if (prefillProjectId) setOpen(true);
   }, [prefillProjectId]);
 
+  // ── Derived data ───────────────────────────────────────────────────────────
   const filteredExpenses = useMemo(() => {
     if (!prefillProjectId) return expenses;
     return expenses.filter(
@@ -45,46 +48,68 @@ const Expenses = () => {
     );
   }, [expenses, prefillProjectId]);
 
-  const metrics = useMemo(() => {
-    const total = filteredExpenses.reduce(
-      (s, e) => s + Number(e.amount || 0),
-      0,
-    );
-    const count = filteredExpenses.length;
-    return { total, count };
-  }, [filteredExpenses]);
-
-  const addExpense = (payload) => {
-    const project = projects.find(
-      (p) => Number(p.id) === Number(payload.projectId),
-    );
-
-    setExpenses((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        expenseNo: nextNo("EXP", prev),
-        ...payload,
-        projectName: project?.name || payload.projectName || "",
-      },
-    ]);
-
-    // clear query param after create
-    if (prefillProjectId) setSearchParams({});
-  };
-
-  const remove = (id) => setExpenses((prev) => prev.filter((x) => x.id !== id));
+  const metrics = useMemo(
+    () => ({
+      total: filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0),
+      count: filteredExpenses.length,
+    }),
+    [filteredExpenses],
+  );
 
   const activeProjectName = useMemo(() => {
     if (!prefillProjectId) return "";
     return (
-      projects.find((p) => String(p.id) === String(prefillProjectId))?.name ||
-      ""
+      projects.find((p) => String(p.projectId) === String(prefillProjectId))
+        ?.name || ""
     );
   }, [prefillProjectId, projects]);
 
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleSave = async (payload) => {
+    const project = projects.find(
+      (p) => String(p.projectId) === String(payload.projectId),
+    );
+
+    await addExpense({
+      ...payload,
+      projectName: project?.name || payload.projectName || "",
+    });
+
+    if (prefillProjectId) setSearchParams({});
+    setOpen(false);
+  };
+
+  const handleDelete = async (expenseId) => {
+    await deleteExpense(expenseId);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    if (prefillProjectId) setSearchParams({});
+  };
+
+  // ── Loading / Error ────────────────────────────────────────────────────────
+  const loading = expensesLoading || projectsLoading;
+  const error = expensesError || projectsError;
+
+//   if (loading)
+//     return (
+//       <div className="flex items-center justify-center h-40 text-gray-500 dark:text-gray-300">
+//         Loading...
+//       </div>
+//     );
+
+  if (error)
+    return (
+      <div className="flex items-center justify-center h-40 text-red-500">
+        {error}
+      </div>
+    );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -120,8 +145,12 @@ const Expenses = () => {
           + Add Expense
         </button>
       </div>
-
-      {/* KPI */}
+      {error && (
+        <div className="flex items-center justify-center h-40 text-red-500">
+          {error}
+        </div>
+      )}
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total Expenses</p>
@@ -136,7 +165,7 @@ const Expenses = () => {
           </p>
         </div>
       </div>
-
+      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
         <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
           Expense List
@@ -158,7 +187,7 @@ const Expenses = () => {
           <tbody>
             {filteredExpenses.map((e) => (
               <tr
-                key={e.id}
+                key={e.expenseId}
                 className="border-t border-gray-100 dark:border-gray-800"
               >
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
@@ -190,7 +219,7 @@ const Expenses = () => {
                 </td>
                 <td className="p-3 text-right">
                   <button
-                    onClick={() => remove(e.id)}
+                    onClick={() => handleDelete(e.expenseId)}
                     className="text-red-600 hover:underline"
                   >
                     Delete
@@ -212,14 +241,11 @@ const Expenses = () => {
           </tbody>
         </table>
       </div>
-
+      {/* Modal */}
       <ExpenseModal
         open={open}
-        onClose={() => {
-          setOpen(false);
-          if (prefillProjectId) setSearchParams({});
-        }}
-        onSave={addExpense}
+        onClose={handleClose}
+        onSave={handleSave}
         projects={projects}
         prefillProjectId={prefillProjectId}
       />

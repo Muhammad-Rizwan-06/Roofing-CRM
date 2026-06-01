@@ -85,6 +85,9 @@ const ProjectDetails = () => {
             materials: result.data.materials || [],
             workers: result.data.workers || [],
             tasks: result.data.tasks || [],
+            invoices: result.data.invoices || [],
+            expenses: result.data.expenses || [],
+            documents: result.data.documents || [],
           };
           setProject(fullProject);
         } else {
@@ -204,16 +207,11 @@ const ProjectDetails = () => {
   const docCounts = useMemo(() => {
     if (!project) return { contracts: 0, photos: 0, attachments: 0, total: 0 };
 
-    const meta = safeParse("documents_meta");
-    const forProject = meta.filter(
-      (d) => Number(d.projectId) === Number(projectId),
-    );
-
-    const contracts = forProject.filter((d) => d.type === "contract").length;
-    const photos = forProject.filter((d) => d.type === "photo").length;
-    const attachments = forProject.filter(
+    const contracts = project?.documents?.filter((d) => d.type === "contract").length || 0;
+    const photos = project?.documents?.filter((d) => d.type === "photo").length || 0;
+    const attachments = project?.documents?.filter(
       (d) => d.type === "attachment",
-    ).length;
+    ).length || 0;
 
     return {
       contracts,
@@ -239,15 +237,8 @@ const ProjectDetails = () => {
       };
     }
 
-    const invoices = safeParse("invoices");
-    const expenses = safeParse("expenses");
-
-    const projectInvoices = invoices.filter(
-      (inv) => Number(inv.projectId) === Number(projectId),
-    );
-    const projectExpenses = expenses.filter(
-      (ex) => Number(ex.projectId) === Number(projectId),
-    );
+    const projectInvoices = project?.invoices || [];
+    const projectExpenses = project?.expenses || [];
 
     const calcInvoiceTotal = (inv) => {
       const subtotal = (inv.items || []).reduce(

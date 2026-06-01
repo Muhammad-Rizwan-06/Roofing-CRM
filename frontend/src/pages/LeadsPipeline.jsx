@@ -79,6 +79,7 @@ const LeadsPipeline = () => {
       id: Date.now(),
       name: `Roof Project - ${lead.name}`,
       client: lead.name,
+      leadId: lead.leadId,
       status: "Pending",
       budget: Number(lead.estimatedValue || 0),
       source: "Lead Conversion",

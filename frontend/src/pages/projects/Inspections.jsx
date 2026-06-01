@@ -310,7 +310,7 @@ const Inspections = () => {
                   colSpan={6}
                   className="px-4 py-8 text-center text-gray-500 dark:text-gray-300"
                 >
-                  {pageLoading ? <p>Loading...</p> : <p>No inspection records yet.</p>}
+                  <p>No inspection records yet.</p>
                 </td>
               </tr>
             )}

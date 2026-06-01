@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import EstimateModal from "../../components/finance/EstimateModal";
-import { estimatesMock } from "../../data/financeMockData";
-import { safeParse } from "../../utils/storageHelper";
+import { useEstimates } from "../../context/EstimatesContext";
+import { useProjects } from "../../context/ProjectsContext";
+import { useLeads } from "../../context/LeadContext";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -37,22 +38,23 @@ const Estimates = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [projects] = useState(() => safeParse("projects"));
-  const [leads, setLeads] = useState(() => safeParse("leads"));
+  const {
+    estimates,
+    loading: estimatesLoading,
+    getAllEstimates,
+    addEstimate,
+    updateEstimate,
+    deleteEstimate,
+  } = useEstimates();
 
-  const [estimates, setEstimates] = useState(() => {
-    const stored = JSON.parse(localStorage.getItem("estimates")) || null;
-    return stored ?? estimatesMock;
-  });
+  const { projects, getAll: getAllProjects, createProject } = useProjects();
+  const { leads, getAll: getAllLeads, updateLead, deleteLead } = useLeads();
 
-  useEffect(
-    () => localStorage.setItem("estimates", JSON.stringify(estimates)),
-    [estimates],
-  );
-
-  // Keep leads fresh (because leads can change on leads page)
+  // Fetch all data on mount
   useEffect(() => {
-    setLeads(JSON.parse(localStorage.getItem("leads")) || []);
+    getAllEstimates();
+    getAllLeads();
+    getAllProjects();
   }, []);
 
   // Auto open modal when navigated from LeadsTable "Estimate" action
@@ -71,69 +73,71 @@ const Estimates = () => {
     return { total, accepted, sent, totalValue };
   }, [estimates]);
 
-  const syncLeadsToStorage = (updated) => {
-    localStorage.setItem("leads", JSON.stringify(updated));
-    setLeads(updated);
-  };
+  // ─── Lead stage sync ─────────────────────────────────────────────────────
 
   const updateLeadStage = (leadId, estimateStatus) => {
     const newStage = leadStageFromEstimateStatus(estimateStatus);
     if (!leadId || !newStage) return;
 
-    const currentLeads = JSON.parse(localStorage.getItem("leads")) || [];
-    const updated = currentLeads.map((l) =>
-      Number(l.id) === Number(leadId) ? { ...l, status: newStage } : l,
-    );
-    syncLeadsToStorage(updated);
+    // Handle both 'id' and 'leadId' field names due to inconsistency in mockData
+    const lead = leads.find((l) => (l.leadId) === (leadId));
+    if (lead) {
+      const actualLeadId = lead.leadId;
+      updateLead(actualLeadId, { status: newStage, stage: newStage });
+    }
   };
 
-  const addEstimate = (payload) => {
+  // ─── Handlers ────────────────────────────────────────────────────────────
+
+  const handleAdd = async (payload) => {
     const leadId = payload.leadId || null;
     const leadName = leadId
-      ? leads.find((l) => Number(l.id) === Number(leadId))?.name ||
+      ? leads.find((l) => (l.leadId) === (leadId))?.name ||
         payload.customer
       : null;
 
-    const newEstimate = {
-      id: Date.now(),
-      estimateNo: nextNo("EST", estimates),
+    const estimateNo = nextNo("EST", estimates);
+
+    const result = await addEstimate({
       ...payload,
+      estimateNo,
       leadId,
       leadName,
-    };
+    });
 
-    setEstimates((prev) => [...prev, newEstimate]);
-
-    // if estimate is created for a lead, move lead stage
-    if (leadId) {
-      // Draft doesn't move, Sent/Accepted/Rejected will move.
-      // BUT: most companies move stage to "Estimate Sent" when estimate is created.
-      const stage =
-        payload.status === "Draft" ? "Estimate Sent" : payload.status;
-      updateLeadStage(
-        leadId,
-        stage === "Estimate Sent" ? "Sent" : payload.status,
-      );
+    if (!result.ok) {
+      alert(result.message);
+      return;
     }
 
-    // clear query param after modal saves (so refresh doesn't auto-open)
+    // move lead stage on create
+    if (leadId && payload.status !== "Draft") {
+      updateLeadStage(leadId, payload.status);
+    }
+
     if (prefillLeadId) setSearchParams({});
   };
 
-  const remove = (id) =>
-    setEstimates((prev) => prev.filter((x) => x.id !== id));
+  const handleUpdateStatus = async (estimateId, status) => {
+    const result = await updateEstimate(estimateId, { status });
 
-  const updateStatus = (id, status) => {
-    setEstimates((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, status } : x)),
-    );
+    if (!result.ok) {
+      alert(result.message);
+      return;
+    }
 
-    const estimate = estimates.find((e) => e.id === id);
+    const estimate = estimates.find((e) => e.estimateId === estimateId);
     if (estimate?.leadId) updateLeadStage(estimate.leadId, status);
   };
 
-  // ✅ Convert accepted estimate -> project (linked)
-  const convertEstimateToProject = (estimate) => {
+  const handleDelete = async (estimateId) => {
+    const result = await deleteEstimate(estimateId);
+    if (!result.ok) alert(result.message);
+  };
+
+  // ─── Project conversion ───────────────────────────────────────────────────
+
+  const convertEstimateToProject = async (estimate) => {
     if (estimate.status !== "Accepted") {
       alert('Only "Accepted" estimates can be converted.');
       return;
@@ -145,53 +149,50 @@ const Estimates = () => {
 
     const total = calcTotal(estimate.items, estimate.taxRate);
 
-    const projectId = Date.now();
-    const existingProjects = JSON.parse(localStorage.getItem("projects")) || [];
-
-    const newProject = {
-      id: projectId,
+    const projectResult = await createProject({
       name: `Roof Project - ${estimate.customer}`,
       client: estimate.customer,
       status: "Pending",
       budget: total,
       supervisor: "",
       team: "",
-      materials: [],
-      workers: [],
-      tasks: [],
       source: "Estimate Accepted",
-      leadId: estimate.leadId || null,
-      estimateId: estimate.id,
-    };
+      estimateId: estimate.estimateId,
+    });
 
-    localStorage.setItem(
-      "projects",
-      JSON.stringify([...existingProjects, newProject]),
-    );
-
-    // link estimate -> project
-    const updatedEstimates = (
-      JSON.parse(localStorage.getItem("estimates")) || []
-    ).map((e) =>
-      e.id === estimate.id
-        ? { ...e, projectId, projectName: newProject.name }
-        : e,
-    );
-    localStorage.setItem("estimates", JSON.stringify(updatedEstimates));
-    setEstimates(updatedEstimates);
-
-    // remove lead (to match your existing convert behavior)
-    if (estimate.leadId) {
-      const currentLeads = JSON.parse(localStorage.getItem("leads")) || [];
-      const updatedLeads = currentLeads.filter(
-        (l) => Number(l.id) !== Number(estimate.leadId),
-      );
-      syncLeadsToStorage(updatedLeads);
+    if (!projectResult.ok) {
+      alert(projectResult.message);
+      return;
     }
 
-    alert(`Estimate converted to Project: ${newProject.name}`);
-    navigate(`/projects/${projectId}`);
+    const createdProject = projectResult.data;
+    const createdProjectId = createdProject.projectId;
+    const projectName = createdProject.name || `Roof Project - ${estimate.customer}`;
+
+    // link estimate -> project via API
+    const linkResult = await updateEstimate(estimate.estimateId, {
+      projectId: createdProjectId,
+      projectName: projectName,
+    });
+
+    if (!linkResult.ok) {
+      alert(`Project created but linking failed: ${linkResult.message}`);
+      return;
+    }
+
+    // Delete the linked lead if exists (conversion complete)
+    if (estimate.leadId) {
+      const deleteResult = await deleteLead(estimate.leadId);
+      if (!deleteResult.ok) {
+        console.warn(`Lead deletion failed: ${deleteResult.message}`);
+      }
+    }
+
+    alert(`Estimate converted to Project: ${createdProject.name}`);
+    navigate(`/projects/${createdProjectId}`);
   };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -208,7 +209,6 @@ const Estimates = () => {
         <button
           onClick={() => {
             setOpen(true);
-            // if user opens manually, clear leadId param so it doesn't keep forcing prefill
             if (prefillLeadId) setSearchParams({});
           }}
           className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
@@ -265,72 +265,74 @@ const Estimates = () => {
           </thead>
 
           <tbody>
-            {estimates.map((e) => {
-              const total = calcTotal(e.items, e.taxRate);
 
-              return (
-                <tr
-                  key={e.id}
-                  className="border-t border-gray-100 dark:border-gray-800"
-                >
-                  <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
-                    {e.estimateNo}
-                  </td>
-                  <td className="p-3 text-gray-700 dark:text-gray-200">
-                    {e.customer}
-                  </td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {e.leadName || (e.leadId ? `Lead #${e.leadId}` : "—")}
-                  </td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {e.projectName ? (
-                      <button
-                        className="text-blue-600 hover:underline"
-                        onClick={() => navigate(`/projects/${e.projectId}`)}
+            {!estimatesLoading &&
+              estimates.map((e) => {
+                const total = calcTotal(e.items, e.taxRate);
+                return (
+                  <tr
+                    key={e.estimateId}
+                    className="border-t border-gray-100 dark:border-gray-800"
+                  >
+                    <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
+                      {e.estimateNo}
+                    </td>
+                    <td className="p-3 text-gray-700 dark:text-gray-200">
+                      {e.customer}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {e.leadName || (e.leadId ? `Lead #${e.leadId}` : "—")}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {e.projectName ? (
+                        <button
+                          className="text-blue-600 hover:underline"
+                          onClick={() => navigate(`/projects/${e.projectId}`)}
+                        >
+                          {e.projectName}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="p-3 text-gray-800 dark:text-gray-100">
+                      {money(total)}
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={e.status}
+                        onChange={(ev) =>
+                          handleUpdateStatus(e.estimateId, ev.target.value)
+                        }
+                        className="rounded-lg border px-2 py-1 bg-white dark:bg-gray-950 dark:text-white"
                       >
-                        {e.projectName}
-                      </button>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="p-3 text-gray-800 dark:text-gray-100">
-                    {money(total)}
-                  </td>
-                  <td className="p-3">
-                    <select
-                      value={e.status}
-                      onChange={(ev) => updateStatus(e.id, ev.target.value)}
-                      className="rounded-lg border px-2 py-1 bg-white dark:bg-gray-950 dark:text-white"
-                    >
-                      <option>Draft</option>
-                      <option>Sent</option>
-                      <option>Accepted</option>
-                      <option>Rejected</option>
-                    </select>
-                  </td>
-                  <td className="p-3 text-right space-x-3">
-                    {e.status === "Accepted" && !e.projectId && (
+                        <option>Draft</option>
+                        <option>Sent</option>
+                        <option>Accepted</option>
+                        <option>Rejected</option>
+                      </select>
+                    </td>
+                    <td className="p-3 text-right space-x-3">
+                      {e.status === "Accepted" && !e.projectId && (
+                        <button
+                          onClick={() => convertEstimateToProject(e)}
+                          className="text-green-600 hover:underline"
+                        >
+                          Convert
+                        </button>
+                      )}
                       <button
-                        onClick={() => convertEstimateToProject(e)}
-                        className="text-green-600 hover:underline"
+                        onClick={() => handleDelete(e.estimateId)}
+                        className="text-red-600 hover:underline"
                       >
-                        Convert
+                        Delete
                       </button>
-                    )}
+                    </td>
+                  </tr>
+                );
+              })}
 
-                    <button
-                      onClick={() => remove(e.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-
-            {estimates.length === 0 && (
+            {!estimatesLoading && estimates.length === 0 && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"
@@ -350,7 +352,7 @@ const Estimates = () => {
           setOpen(false);
           if (prefillLeadId) setSearchParams({});
         }}
-        onSave={addEstimate}
+        onSave={handleAdd}
         projects={projects}
         leads={leads}
         prefillLeadId={prefillLeadId}

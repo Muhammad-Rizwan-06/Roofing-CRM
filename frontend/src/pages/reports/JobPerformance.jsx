@@ -9,7 +9,9 @@ import {
   Bar,
   XAxis,
 } from "recharts";
-import { safeParse } from "../../utils/storageHelper";
+import { useEffect } from "react"; 
+import { useProjects } from "../../context/ProjectsContext";
+import { useExpenses } from "../../context/ExpensesContext";
 
 const money = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -21,8 +23,13 @@ const money = (n) =>
 const COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b"];
 
 const JobPerformance = () => {
-  const projects = useMemo(() => safeParse("projects"), []);
-  const expenses = useMemo(() => safeParse("expenses"), []);
+    const { projects, getAll: fetchProjects} = useProjects();
+    const { expenses, fetchExpenses } = useExpenses();
+
+    useEffect(() => {
+      fetchProjects();
+      fetchExpenses();
+    }, []);
 
   const summary = useMemo(() => {
     let active = 0;
@@ -51,7 +58,7 @@ const JobPerformance = () => {
         0,
       );
 
-      const extraExpenses = Number(expenseByProjectId[p.id] || 0);
+      const extraExpenses = Number(expenseByProjectId[p.projectId] || 0);
 
       const profit = revenue - (materialCost + workerCost + extraExpenses);
 

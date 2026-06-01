@@ -1,37 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
-
-const lsGet = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const lsSet = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-
-const migrateOldCostMaterialsToInventory = (oldList = []) => {
-  // old structure: { material, quantity, price, total }
-  // new structure: { name, unitPrice, onHand, reorderLevel, supplierId }
-  return oldList.map((m) => ({
-    id: m.id || Date.now(),
-    name: m.material || "Material",
-    unitPrice: Number(m.price || 0),
-    onHand: Number(m.quantity || 0),
-    reorderLevel: 0,
-    supplierId: "",
-    sku: "",
-    notes: "Migrated from old Materials & Cost list",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }));
-};
+import { useMaterials } from "../context/MaterialsContext";
+import { useSuppliers } from "../context/SuppliersContext";
 
 const Materials = () => {
   const { user } = useAuth();
+  const { materials, loading, error, fetchMaterials, addMaterial, updateMaterial, adjustStock: adjustStockAPI, deleteMaterial } = useMaterials();
+  const { suppliers, fetchSuppliers } = useSuppliers();
   const roleName = user?.roleName;
 
   const isAdmin = roleName === ROLE.ADMIN;
@@ -42,26 +18,10 @@ const Materials = () => {
   const canManageInventory = isAdmin || isPM;
   const readOnly = isAccountant;
 
-  const [suppliers] = useState(() => lsGet("suppliers", []));
-
-  const [materials, setMaterials] = useState(() => {
-    const inv = lsGet("inventory_materials", null);
-    if (Array.isArray(inv) && inv.length) return inv;
-
-    const old = lsGet("materials", []);
-    if (old.length) {
-      const migrated = migrateOldCostMaterialsToInventory(old);
-      lsSet("inventory_materials", migrated);
-      return migrated;
-    }
-
-    return [];
-  });
-
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
-
   const [editId, setEditId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -73,12 +33,14 @@ const Materials = () => {
     notes: "",
   });
 
+  // Load materials and suppliers on mount
   useEffect(() => {
-    lsSet("inventory_materials", materials);
-  }, [materials]);
+    fetchMaterials();
+    fetchSuppliers();
+  }, []);
 
   const supplierName = (supplierId) =>
-    suppliers.find((s) => Number(s.id) === Number(supplierId))?.name || "—";
+      suppliers.find((s) => (s.supplierId) === (supplierId))?.name || "—";
 
   const lowStockCount = useMemo(() => {
     return materials.filter(
@@ -113,7 +75,7 @@ const Materials = () => {
     });
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!canManageInventory) return;
 
@@ -121,37 +83,34 @@ const Materials = () => {
 
     const payload = {
       name: form.name.trim(),
-      supplierId: form.supplierId ? Number(form.supplierId) : "",
+      supplierId: form.supplierId ? (form.supplierId) : "",
       unitPrice: Number(form.unitPrice || 0),
       onHand: Number(form.onHand || 0),
       reorderLevel: Number(form.reorderLevel || 0),
       sku: (form.sku || "").trim(),
       notes: form.notes || "",
-      updatedAt: new Date().toISOString(),
     };
 
-    if (editId) {
-      setMaterials((prev) =>
-        prev.map((m) => (m.id === editId ? { ...m, ...payload } : m))
-      );
-    } else {
-      setMaterials((prev) => [
-        {
-          id: Date.now(),
-          ...payload,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-    }
 
-    resetForm();
+    try {
+      setIsSaving(true);
+      if (editId) {
+        await updateMaterial(editId, payload);
+      } else {
+        await addMaterial(payload);
+      }
+      resetForm();
+    } catch (err) {
+      console.error("Error saving material:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const onEdit = (m) => {
     if (!canManageInventory) return;
 
-    setEditId(m.id);
+    setEditId(m.materialId);
     setForm({
       name: m.name || "",
       supplierId: m.supplierId ? String(m.supplierId) : "",
@@ -163,28 +122,37 @@ const Materials = () => {
     });
   };
 
-  const onDelete = (id) => {
+  const onDelete = async (materialId) => {
     if (!canManageInventory) return;
 
     const ok = confirm("Delete this inventory material?");
     if (!ok) return;
-    setMaterials((prev) => prev.filter((m) => m.id !== id));
-    if (editId === id) resetForm();
+
+    try {
+      setIsSaving(true);
+      await deleteMaterial(materialId);
+      if (editId === materialId) resetForm();
+    } catch (err) {
+      console.error("Error deleting material:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const adjustStock = (id, delta) => {
+  const adjustStock = async (materialId, delta) => {
     if (!canManageInventory) return;
 
     const d = Number(delta || 0);
     if (!d) return;
 
-    setMaterials((prev) =>
-      prev.map((m) => {
-        if (m.id !== id) return m;
-        const next = Math.max(0, Number(m.onHand || 0) + d);
-        return { ...m, onHand: next, updatedAt: new Date().toISOString() };
-      })
-    );
+    try {
+      setIsSaving(true);
+      await adjustStockAPI(materialId, d);
+    } catch (err) {
+      console.error("Error adjusting stock:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -204,6 +172,11 @@ const Materials = () => {
               Read-only access for Accountant role.
             </p>
           )}
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
@@ -211,7 +184,7 @@ const Materials = () => {
             Low Stock Items
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {lowStockCount}
+            {loading ? "—" : lowStockCount}
           </p>
         </div>
       </div>
@@ -233,7 +206,7 @@ const Materials = () => {
           >
             <option value="">All Suppliers</option>
             {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
+              <option key={s.supplierId} value={s.supplierId}>
                 {s.name}
               </option>
             ))}
@@ -284,6 +257,7 @@ const Materials = () => {
                   setForm((p) => ({ ...p, name: e.target.value }))
                 }
                 placeholder="e.g. Shingles"
+                disabled={isSaving}
               />
             </div>
 
@@ -297,10 +271,11 @@ const Materials = () => {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, supplierId: e.target.value }))
                 }
+                disabled={isSaving}
               >
                 <option value="">Select supplier</option>
                 {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.supplierId} value={s.supplierId}>
                     {s.name}
                   </option>
                 ))}
@@ -316,6 +291,7 @@ const Materials = () => {
                   setForm((p) => ({ ...p, sku: e.target.value }))
                 }
                 placeholder="e.g. SH-001"
+                disabled={isSaving}
               />
             </div>
 
@@ -328,6 +304,7 @@ const Materials = () => {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, unitPrice: e.target.value }))
                 }
+                disabled={isSaving}
               />
             </div>
 
@@ -340,6 +317,7 @@ const Materials = () => {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, onHand: e.target.value }))
                 }
+                disabled={isSaving}
               />
             </div>
 
@@ -352,6 +330,7 @@ const Materials = () => {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, reorderLevel: e.target.value }))
                 }
+                disabled={isSaving}
               />
             </div>
 
@@ -364,12 +343,17 @@ const Materials = () => {
                   setForm((p) => ({ ...p, notes: e.target.value }))
                 }
                 placeholder="Optional"
+                disabled={isSaving}
               />
             </div>
           </div>
 
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700">
-            {editId ? "Update Material" : "Add Material"}
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? editId ? "Updating..." : "Adding..." : editId ? "Update Material" : "Add Material"}
           </button>
         </form>
       )}
@@ -402,7 +386,7 @@ const Materials = () => {
 
               return (
                 <tr
-                  key={m.id}
+                  key={m.materialId}
                   className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
                 >
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
@@ -447,17 +431,19 @@ const Materials = () => {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
-                          onClick={() => adjustStock(m.id, -1)}
+                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => adjustStock(m.materialId, -1)}
                           title="Decrease stock"
+                          disabled={isSaving}
                         >
                           -1
                         </button>
                         <button
                           type="button"
-                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600"
-                          onClick={() => adjustStock(m.id, +1)}
+                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700  hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => adjustStock(m.materialId, +1)}
                           title="Increase stock"
+                          disabled={isSaving}
                         >
                           +1
                         </button>
@@ -470,14 +456,16 @@ const Materials = () => {
                   {canManageInventory && (
                     <td className="px-4 py-3 text-right space-x-3">
                       <button
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => onEdit(m)}
+                        disabled={isSaving}
                       >
                         Edit
                       </button>
                       <button
-                        className="text-red-600 hover:underline"
-                        onClick={() => onDelete(m.id)}
+                        className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => onDelete(m.materialId)}
+                        disabled={isSaving}
                       >
                         Delete
                       </button>

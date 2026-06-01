@@ -1,28 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PaymentModal from "../../components/finance/PaymentModal";
-import { paymentsMock } from "../../data/financeMockData";
-import { safeParse } from "../../utils/storageHelper";
+import { usePayments } from "../../context/PaymentsContext";
+import { useInvoices } from "../../context/InvoicesContext";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
-
-const nextNo = (prefix, list) => {
-  const max = (list || []).reduce((m, x) => {
-    const n = Number(String(x.paymentNo || "").replace(prefix + "-", "")) || 0;
-    return Math.max(m, n);
-  }, 0);
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-};
-
-const calcInvoiceTotal = (inv) => {
-  const items = inv?.items || [];
-  const taxRate = Number(inv?.taxRate || 0);
-  const subtotal = items.reduce(
-    (s, it) => s + Number(it.qty || 0) * Number(it.unitPrice || 0),
-    0,
-  );
-  return subtotal + subtotal * taxRate;
-};
 
 const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,76 +12,71 @@ const Payments = () => {
 
   const [open, setOpen] = useState(false);
 
-  const [invoices, setInvoices] = useState(() => safeParse("invoices"));
+  const {
+    payments,
+    loading: paymentsLoading,
+    error: paymentsError,
+    fetchPayments,
+    addPayment,
+    deletePayment,
+  } = usePayments();
 
-  const [payments, setPayments] = useState(() => {
-    const stored = safeParse("payments");
-    return stored.length > 0 ? stored : paymentsMock;
-  });
+  const {
+    invoices,
+    loading: invoicesLoading,
+    error: invoicesError,
+    getAllInvoices: fetchInvoices,
+  } = useInvoices();
 
-  useEffect(
-    () => localStorage.setItem("payments", JSON.stringify(payments)),
-    [payments],
-  );
-
-  // refresh invoices when page loads
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    setInvoices(safeParse("invoices"));
+    fetchPayments();
+    fetchInvoices();
   }, []);
 
-  // auto-open when coming from invoice context
+  // auto-open modal when coming from invoice context
   useEffect(() => {
     if (prefillInvoiceId) setOpen(true);
   }, [prefillInvoiceId]);
 
-  const metrics = useMemo(() => {
-    const totalPayments = payments.reduce(
-      (s, p) => s + Number(p.amount || 0),
-      0,
-    );
-    const count = payments.length;
-    return { totalPayments, count };
-  }, [payments]);
+  // ── Metrics ────────────────────────────────────────────────────────────────
+  const metrics = useMemo(
+    () => ({
+      totalPayments: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
+      count: payments.length,
+    }),
+    [payments],
+  );
 
-  const addPayment = (payload) => {
-    setPayments((prevPayments) => {
-      const newPayment = {
-        id: Date.now(),
-        paymentNo: nextNo("PAY", prevPayments),
-        ...payload,
-      };
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleSave = async (payload) => {
+    await addPayment(payload);
+    await fetchInvoices(); // sync invoice amountPaid + status after payment
 
-      // update invoice totals in localStorage
-      const currentInvoices =
-        JSON.parse(localStorage.getItem("invoices")) || [];
-      const updatedInvoices = currentInvoices.map((inv) => {
-        if (inv.id !== payload.invoiceId) return inv;
-
-        const total = calcInvoiceTotal(inv);
-        const amountPaid =
-          Number(inv.amountPaid || 0) + Number(payload.amount || 0);
-
-        let status = "Partially Paid";
-        if (amountPaid <= 0) status = "Unpaid";
-        if (amountPaid >= total) status = "Paid";
-
-        return { ...inv, amountPaid, status };
-      });
-
-      localStorage.setItem("invoices", JSON.stringify(updatedInvoices));
-      setInvoices(updatedInvoices);
-
-      // clear query param after save so refresh doesn't auto-open
-      if (prefillInvoiceId) setSearchParams({});
-
-      return [...prevPayments, newPayment];
-    });
+    if (prefillInvoiceId) setSearchParams({});
+    setOpen(false);
   };
 
-  const remove = (id) => setPayments((prev) => prev.filter((x) => x.id !== id));
+  const handleDelete = async (paymentId) => {
+    await deletePayment(paymentId);
+    await fetchInvoices(); // sync invoice amountPaid + status after reversal
+  };
 
+  const handleClose = () => {
+    setOpen(false);
+    if (prefillInvoiceId) setSearchParams({});
+  };
+
+  // ── Loading / Error ────────────────────────────────────────────────────────
+  const loading = paymentsLoading || invoicesLoading;
+  const error = paymentsError || invoicesError;
+
+
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -109,7 +86,6 @@ const Payments = () => {
             Record payments against invoices (linked)
           </p>
         </div>
-
         <button
           onClick={() => {
             setOpen(true);
@@ -120,8 +96,12 @@ const Payments = () => {
           + Record Payment
         </button>
       </div>
-
-      {/* KPI */}
+     {error && (
+      <div className="flex text-red-500">
+        {error}
+      </div>
+      )}
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow">
           <p className="text-xs text-gray-500">Total Payments</p>
@@ -136,7 +116,7 @@ const Payments = () => {
           </p>
         </div>
       </div>
-
+      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
         <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
           Payment List
@@ -158,7 +138,7 @@ const Payments = () => {
           <tbody>
             {payments.map((p) => (
               <tr
-                key={p.id}
+                key={p.paymentId}
                 className="border-t border-gray-100 dark:border-gray-800"
               >
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
@@ -181,7 +161,7 @@ const Payments = () => {
                 </td>
                 <td className="p-3 text-right">
                   <button
-                    onClick={() => remove(p.id)}
+                    onClick={() => handleDelete(p.paymentId)}
                     className="text-red-600 hover:underline"
                   >
                     Delete
@@ -203,14 +183,11 @@ const Payments = () => {
           </tbody>
         </table>
       </div>
-
+      {/* Modal */}
       <PaymentModal
         open={open}
-        onClose={() => {
-          setOpen(false);
-          if (prefillInvoiceId) setSearchParams({});
-        }}
-        onSave={addPayment}
+        onClose={handleClose}
+        onSave={handleSave}
         invoices={invoices}
         prefillInvoiceId={prefillInvoiceId}
       />

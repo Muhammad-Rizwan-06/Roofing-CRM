@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import InvoiceModal from "../../components/finance/InvoiceModal";
-import { invoicesMock } from "../../data/financeMockData";
-import { safeParse } from "../../utils/storageHelper";
+import { useInvoices } from "../../context/InvoicesContext";
+import { useProjects } from "../../context/ProjectsContext";
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -14,31 +14,36 @@ const calcTotal = (items = [], taxRate = 0) => {
   return subtotal + subtotal * Number(taxRate || 0);
 };
 
-const nextNo = (prefix, list) => {
-  const max = (list || []).reduce((m, x) => {
-    const n = Number(String(x.invoiceNo || "").replace(prefix + "-", "")) || 0;
-    return Math.max(m, n);
-  }, 0);
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-};
-
 const Invoices = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillProjectId = searchParams.get("projectId") || "";
 
   const [open, setOpen] = useState(false);
+  const [apiError, setApiError] = useState(null);
 
-  const [projects] = useState(() => safeParse("projects"));
+  // Use API contexts instead of localStorage
+  const {
+    invoices,
+    loading: invoicesLoading,
+    error: invoicesError,
+    getAllInvoices,
+    addInvoice: addInvoiceAPI,
+    deleteInvoice: deleteInvoiceAPI,
+  } = useInvoices();
 
-  const [invoices, setInvoices] = useState(() => {
-    const stored = safeParse("invoices");
-    return stored.length > 0 ? stored : invoicesMock;
-  });
+  const {
+    projects,
+    loading: projectsLoading,
+    error: projectsError,
+    getAll: getAllProjects,
+  } = useProjects();
 
+  // Fetch invoices and projects on mount
   useEffect(() => {
-    localStorage.setItem("invoices", JSON.stringify(invoices));
-  }, [invoices]);
+    getAllInvoices();
+    getAllProjects();
+  }, [getAllInvoices, getAllProjects]);
 
   // Auto-open when navigated from project context
   useEffect(() => {
@@ -59,27 +64,53 @@ const Invoices = () => {
     return { totalInvoiced, paid, outstanding, countPaid };
   }, [invoices]);
 
-  const addInvoice = (payload) => {
-    const project = projects.find(
-      (p) => Number(p.id) === Number(payload.projectId),
-    );
+  const addInvoice = async (payload) => {
+    try {
+      setApiError(null);
+      const project = projects.find(
+        (p) => (p.projectId) === (payload.projectId),
+      );
 
-    const invoiceToSave = {
-      id: Date.now(),
-      invoiceNo: nextNo("INV", invoices),
-      ...payload,
-      projectName: project?.name || payload.projectName || "",
-      customer: project?.client || payload.customer,
-      leadId: project?.leadId ?? null,
-    };
+      const invoiceToSave = {
+        ...payload,
+        projectName: project?.name || payload.projectName || "",
+        customer: project?.client || payload.customer,
+        leadId: project?.leadId ?? null,
+      };
 
-    setInvoices((prev) => [...prev, invoiceToSave]);
+      console.log("Saving invoice:", invoiceToSave);
 
-    // clear query param after creating (so refresh doesn’t re-open)
-    if (prefillProjectId) setSearchParams({});
+      const result = await addInvoiceAPI(invoiceToSave);
+
+      if (result.ok) {
+        // clear query param after creating (so refresh doesn't re-open)
+        if (prefillProjectId) setSearchParams({});
+        return result;
+      } else {
+        setApiError(result.message || "Failed to create invoice");
+        return result;
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to create invoice";
+      setApiError(errorMsg);
+      return { ok: false, message: errorMsg };
+    }
   };
 
-  const remove = (id) => setInvoices((prev) => prev.filter((x) => x.id !== id));
+  const remove = async (id) => {
+    try {
+      setApiError(null);
+      const result = await deleteInvoiceAPI(id);
+      if (!result.ok) {
+        setApiError(result.message || "Failed to delete invoice");
+      }
+      return result;
+    } catch (err) {
+      const errorMsg = err.message || "Failed to delete invoice";
+      setApiError(errorMsg);
+      return { ok: false, message: errorMsg };
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -98,11 +129,19 @@ const Invoices = () => {
             setOpen(true);
             if (prefillProjectId) setSearchParams({});
           }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
+          disabled={projectsLoading}
         >
           + New Invoice
         </button>
       </div>
+
+      {/* Error Display */}
+      {(apiError || invoicesError || projectsError) && (
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg">
+          {apiError || invoicesError || projectsError}
+        </div>
+      )}
 
       {/* KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -163,7 +202,7 @@ const Invoices = () => {
 
               return (
                 <tr
-                  key={inv.id}
+                  key={inv.invoiceId}
                   className="border-t border-gray-100 dark:border-gray-800"
                 >
                   <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
@@ -212,7 +251,7 @@ const Invoices = () => {
                     <button
                       className="text-blue-600 hover:underline"
                       onClick={() =>
-                        navigate(`/finance/payments?invoiceId=${inv.id}`)
+                        navigate(`/finance/payments?invoiceId=${inv.invoiceId}`)
                       }
                       title="Record payment for this invoice"
                     >
@@ -220,7 +259,7 @@ const Invoices = () => {
                     </button>
 
                     <button
-                      onClick={() => remove(inv.id)}
+                      onClick={() => remove(inv.invoiceId)}
                       className="text-red-600 hover:underline"
                     >
                       Delete
@@ -230,7 +269,7 @@ const Invoices = () => {
               );
             })}
 
-            {invoices.length === 0 && (
+            {invoices.length === 0 && !invoicesLoading && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"

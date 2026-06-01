@@ -90,9 +90,7 @@ const Projects = () => {
         supervisor: project.supervisor || "",
         team: project.team || "",
         budget: Number(project.budget || 0),
-        // materials: project.materials || [],
-        // workers: project.workers || [],
-        // tasks: project.tasks || [],
+        source: "Through Form",
       });
 
       if (result.ok) {

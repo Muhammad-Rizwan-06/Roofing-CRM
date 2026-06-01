@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { putFile } from "../../utils/idbFileStore";
+import { useDocuments } from "../../context/DocumentsContext";
+import { useAuth } from "../../context/AuthContext";
 
-const MAX_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_SIZE = 100 * 1024 * 1024; // 100MB (S3 default)
 
 const bytes = (n) => {
   const v = Number(n || 0);
@@ -19,22 +20,41 @@ const UploadDocumentModal = ({
   docType, // "contract" | "photo" | "attachment"
   prefillProjectId = "",
 }) => {
+  const { uploadDocument, loading, error: contextError } = useDocuments();
+  const { user } = useAuth();
+
   const [projectId, setProjectId] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState("");
+  const [fileMimeType, setFileMimeType] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
 
   const inputRef = useRef(null);
 
   useEffect(() => {
+    console.log("=== Modal lifecycle: open =", open);
+    console.log("projects prop:", projects);
+    console.log("prefillProjectId prop:", prefillProjectId);
+
     if (!open) return;
 
     // reset on open (prevents accidentally re-uploading old selected file)
     setNotes("");
     setFile(null);
+    setFileName("");
+    setFileMimeType("");
+    setError(null);
 
-    if (prefillProjectId) setProjectId(String(prefillProjectId));
-    else setProjectId("");
+    if (prefillProjectId) {
+      console.log("Setting projectId to:", String(prefillProjectId));
+      setProjectId(String(prefillProjectId));
+    } else {
+      console.log("No prefillProjectId, setting to empty string");
+      setProjectId("");
+    }
   }, [open, prefillProjectId]);
 
   const title = useMemo(() => {
@@ -60,7 +80,9 @@ const UploadDocumentModal = ({
     if (docType === "photo") return String(f.type || "").startsWith("image/");
     if (docType === "contract") {
       const name = String(f.name || "").toLowerCase();
-      return name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx");
+      return (
+        name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx")
+      );
     }
     return true;
   };
@@ -68,19 +90,34 @@ const UploadDocumentModal = ({
   const pickFile = () => inputRef.current?.click();
 
   const setPickedFile = (f) => {
-    if (!f) return setFile(null);
+    console.log("=== setPickedFile called ===");
+    console.log("Input file:", f);
+    console.log("File name:", f?.name);
+    console.log("File type:", f?.type);
+    console.log("File size:", f?.size);
+
+    if (!f) {
+      setFile(null);
+      setFileName("");
+      setFileMimeType("");
+      return;
+    }
 
     if (!isAllowedFile(f)) {
-      alert(`Invalid file type. Allowed: ${acceptHint}`);
+      setError(`Invalid file type. Allowed: ${acceptHint}`);
       return;
     }
 
     if (f.size > MAX_SIZE) {
-      alert("File too large (max 25MB for offline demo).");
+      setError("File too large (max 100MB).");
       return;
     }
 
+    console.log("=== File passed validation, setting state ===");
     setFile(f);
+    setFileName(f.name || "");
+    setFileMimeType(f.type || "");
+    setError(null);
   };
 
   const onDrop = (e) => {
@@ -105,30 +142,82 @@ const UploadDocumentModal = ({
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!projectId) return alert("Project is required");
-    if (!file) return alert("File is required");
+    setError(null);
 
-    const p = projects.find((x) => String(x.id) === String(projectId));
-    if (!p) return alert("Invalid project selected");
+    console.log("=== SUBMIT: Initial state ===");
+    console.log("projectId state:", projectId, "type:", typeof projectId);
+    console.log("file state:", file, "type:", typeof file);
+    console.log("file?.name:", file?.name);
+    console.log("file?.type:", file?.type);
+    console.log("file?.size:", file?.size);
 
-    const id = Date.now(); // document id
-    await putFile({ id, file });
+    if (!projectId) {
+      setError("Project is required");
+      return;
+    }
+    if (!file) {
+      setError("File is required");
+      return;
+    }
 
-    const meta = {
-      id,
-      type: docType,
-      projectId: Number(projectId),
-      projectName: p.name,
-      client: p.client,
-      fileName: file.name,
-      mimeType: file.type,
-      size: file.size,
-      notes,
-      uploadedAt: new Date().toISOString(),
-    };
+    const p = projects.find((x) => String(x.projectId) === String(projectId));
+    if (!p) {
+      setError("Invalid project selected");
+      return;
+    }
 
-    onUploaded(meta);
-    onClose();
+    console.log("=== SUBMIT: Validation passed ===");
+    console.log("Found project:", p);
+    console.log("docType:", docType);
+
+    setUploading(true);
+    try {
+      const metaToSend = {
+        projectId: String(projectId),
+        projectName: p.name,
+        type: docType,
+        notes,
+        uploadedBy: user
+          ? {
+              userId: user.userId,
+              name: user.name,
+              email: user.email,
+              roleName: user.roleName,
+            }
+          : null,
+      };
+
+      console.log("=== SUBMIT: About to call uploadDocument ===");
+      console.log("file:", file);
+      console.log("fileName state:", fileName);
+      console.log("fileMimeType state:", fileMimeType);
+      console.log("meta:", metaToSend);
+
+      const uploadedDoc = await uploadDocument(file, {
+        ...metaToSend,
+        fileName: fileName || file?.name,
+        mimeType: fileMimeType || file?.type,
+      });
+
+      console.log("Upload successful:", uploadedDoc);
+
+      if (onUploaded) {
+        onUploaded(uploadedDoc);
+      }
+
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Upload failed. Please try again.");
+      console.error("Upload error:", err);
+      console.error("Error details:", {
+        name: err?.name,
+        message: err?.message,
+        status: err?.status,
+        data: err?.data,
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!open) return null;
@@ -142,7 +231,7 @@ const UploadDocumentModal = ({
               Upload {title}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
-              Stored in IndexedDB (offline demo). Max size: 25MB.
+              Uploaded to S3. Max size: 100MB.
             </p>
           </div>
 
@@ -151,23 +240,34 @@ const UploadDocumentModal = ({
             className="text-gray-500 hover:text-gray-800 dark:hover:text-white"
             aria-label="Close"
             type="button"
+            disabled={uploading || loading}
           >
             ✕
           </button>
         </div>
 
         <form onSubmit={submit} className="p-5 space-y-4">
+          {/* Errors */}
+          {(error || contextError) && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-xs text-red-700 dark:text-red-300">
+                {error || contextError}
+              </p>
+            </div>
+          )}
+
           {/* Project */}
           <div>
             <label className="text-xs text-gray-500">Project *</label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full mt-1 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
+              disabled={uploading || loading}
+              className="w-full mt-1 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">Select project</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.projectId} value={p.projectId}>
                   {p.name} — {p.client}
                 </option>
               ))}
@@ -183,23 +283,31 @@ const UploadDocumentModal = ({
               type="file"
               accept={accept}
               onChange={(e) => setPickedFile(e.target.files?.[0] || null)}
+              disabled={uploading || loading}
               className="hidden"
             />
 
             <div
-              onClick={pickFile}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
+              onClick={uploading || loading ? undefined : pickFile}
+              onDrop={uploading || loading ? undefined : onDrop}
+              onDragOver={uploading || loading ? undefined : onDragOver}
+              onDragLeave={uploading || loading ? undefined : onDragLeave}
               role="button"
-              tabIndex={0}
+              tabIndex={uploading || loading ? -1 : 0}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") pickFile();
+                if (
+                  (e.key === "Enter" || e.key === " ") &&
+                  !uploading &&
+                  !loading
+                )
+                  pickFile();
               }}
-              className={`mt-1 rounded-2xl border-2 border-dashed p-4 cursor-pointer transition ${
-                dragOver
-                  ? "border-blue-600 bg-blue-50 dark:bg-gray-950"
-                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950"
+              className={`mt-1 rounded-2xl border-2 border-dashed p-4 transition ${
+                uploading || loading
+                  ? "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 cursor-not-allowed opacity-60"
+                  : dragOver
+                    ? "border-blue-600 bg-blue-50 dark:bg-gray-950 cursor-pointer"
+                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 cursor-pointer"
               }`}
               title="Drag & drop a file here, or click to browse"
             >
@@ -214,7 +322,10 @@ const UploadDocumentModal = ({
                       Drag & drop your file here
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-300">
-                      or <span className="text-blue-600 font-medium">click to browse</span>
+                      or{" "}
+                      <span className="text-blue-600 font-medium">
+                        click to browse
+                      </span>
                     </div>
                     <div className="text-[11px] text-gray-500 mt-1">
                       Allowed: {acceptHint}
@@ -227,7 +338,8 @@ const UploadDocumentModal = ({
                       e.stopPropagation();
                       pickFile();
                     }}
-                    className="px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                    disabled={uploading || loading}
+                    className="px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Browse
                   </button>
@@ -253,7 +365,8 @@ const UploadDocumentModal = ({
                         e.stopPropagation();
                         pickFile();
                       }}
-                      className="px-3 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm"
+                      disabled={uploading || loading}
+                      className="px-3 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Change
                     </button>
@@ -263,7 +376,8 @@ const UploadDocumentModal = ({
                         e.stopPropagation();
                         setFile(null);
                       }}
-                      className="px-3 py-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 text-sm"
+                      disabled={uploading || loading}
+                      className="px-3 py-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Remove
                     </button>
@@ -279,7 +393,8 @@ const UploadDocumentModal = ({
             <input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full mt-1 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
+              disabled={uploading || loading}
+              className="w-full mt-1 rounded-xl border px-3 py-2 bg-white dark:bg-gray-950 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="e.g. Signed contract v2, before/after photos..."
             />
           </div>
@@ -289,16 +404,42 @@ const UploadDocumentModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700"
+              disabled={uploading || loading}
+              className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!projectId || !file}
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={!projectId || !file || uploading || loading}
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Upload
+              {uploading || loading ? (
+                <>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                "Upload"
+              )}
             </button>
           </div>
         </form>

@@ -10,6 +10,14 @@ import { ContractsProvider } from "./ContractContext";
 import { EmployeesProvider } from "./EmployeesContext";
 import { TasksProvider } from "./TasksContext";
 import { SubcontractorsProvider } from "./SubContractorContext";
+import { EstimatesProvider } from "./EstimatesContext";
+import { InvoicesProvider } from "./InvoicesContext";
+import { PaymentsProvider } from "./PaymentsContext";
+import { ExpensesProvider } from "./ExpensesContext";
+import { PurchaseOrdersProvider } from "./PurchaseOrdersContext";
+import { MaterialsProvider } from "./MaterialsContext";
+import { SuppliersProvider } from "./SuppliersContext";
+import { DocumentsProvider } from "./DocumentsContext";
 
 // Add more providers as you create them
 export const RootProvider = ({ children }) => {
@@ -25,7 +33,23 @@ export const RootProvider = ({ children }) => {
                                     <EmployeesProvider>
                                         <TasksProvider>
                                             <SubcontractorsProvider>
-                                                {children}
+                                                <EstimatesProvider>
+                                                    <InvoicesProvider>
+                                                        <PaymentsProvider>
+                                                            <ExpensesProvider>
+                                                                <PurchaseOrdersProvider>
+                                                                    <MaterialsProvider>
+                                                                        <SuppliersProvider>
+                                                                            <DocumentsProvider>
+                                                                                {children}
+                                                                            </DocumentsProvider>
+                                                                        </SuppliersProvider>
+                                                                    </MaterialsProvider>
+                                                                </PurchaseOrdersProvider>
+                                                            </ExpensesProvider>
+                                                        </PaymentsProvider>
+                                                    </InvoicesProvider>
+                                                </EstimatesProvider>
                                             </SubcontractorsProvider>
                                         </TasksProvider>
                                     </EmployeesProvider>

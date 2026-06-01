@@ -36,11 +36,11 @@ const InvoiceModal = ({
     }));
 
     if (prefillProjectId) {
-      const p = projects.find((x) => String(x.id) === String(prefillProjectId));
+      const p = projects.find((x) => String(x.projectId) === String(prefillProjectId));
       if (p) {
         setForm((prev) => ({
           ...prev,
-          projectId: String(p.id),
+          projectId: String(p.projectId),
           projectName: p.name || "",
           customer: p.client || prev.customer,
         }));
@@ -56,7 +56,7 @@ const InvoiceModal = ({
   const total = useMemo(() => subtotal + tax, [subtotal, tax]);
 
   const onPickProject = (projectId) => {
-    const p = projects.find((x) => String(x.id) === String(projectId));
+    const p = projects.find((x) => String(x.projectId) === String(projectId));
     setForm((prev) => ({
       ...prev,
       projectId,
@@ -93,7 +93,7 @@ const InvoiceModal = ({
 
     onSave({
       ...form,
-      projectId: Number(form.projectId),
+      projectId: (form.projectId),
       taxRate: Number(form.taxRate || 0),
       amountPaid: 0,
       status: "Unpaid",
@@ -133,7 +133,7 @@ const InvoiceModal = ({
               >
                 <option value="">Select project</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.projectId} value={p.projectId}>
                     {p.name}
                   </option>
                 ))}

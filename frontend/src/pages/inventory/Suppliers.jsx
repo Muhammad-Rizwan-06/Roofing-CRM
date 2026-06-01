@@ -1,19 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
-
-const LS_KEY = "suppliers";
-
-const safeLoad = () => {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY)) || [];
-  } catch {
-    return [];
-  }
-};
+import { useSuppliers } from "../../context/SuppliersContext";
 
 const Suppliers = () => {
   const { user } = useAuth();
+  const { suppliers, loading, error, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
   const roleName = user?.roleName;
 
   const isAdmin = roleName === ROLE.ADMIN;
@@ -24,8 +16,8 @@ const Suppliers = () => {
   const canManageSuppliers = isAdmin || isPM;
   const readOnly = isAccountant;
 
-  const [suppliers, setSuppliers] = useState(() => safeLoad());
   const [editingId, setEditingId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -36,9 +28,10 @@ const Suppliers = () => {
     notes: "",
   });
 
+  // Load suppliers on mount
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify(suppliers));
-  }, [suppliers]);
+    fetchSuppliers();
+  }, []);
 
   const resetForm = () => {
     setEditingId(null);
@@ -52,37 +45,31 @@ const Suppliers = () => {
     });
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!canManageSuppliers) return;
 
     if (!form.name.trim()) return alert("Supplier name is required");
 
-    if (editingId) {
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.id === editingId
-            ? { ...s, ...form, updatedAt: new Date().toISOString() }
-            : s
-        )
-      );
-    } else {
-      const newSupplier = {
-        id: Date.now(),
-        ...form,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setSuppliers((prev) => [newSupplier, ...prev]);
+    try {
+      setIsSaving(true);
+      if (editingId) {
+        await updateSupplier(editingId, form);
+      } else {
+        await addSupplier(form);
+      }
+      resetForm();
+    } catch (err) {
+      console.error("Error saving supplier:", err);
+    } finally {
+      setIsSaving(false);
     }
-
-    resetForm();
   };
 
   const onEdit = (supplier) => {
     if (!canManageSuppliers) return;
 
-    setEditingId(supplier.id);
+    setEditingId(supplier.supplierId);
     setForm({
       name: supplier.name || "",
       contactName: supplier.contactName || "",
@@ -93,16 +80,22 @@ const Suppliers = () => {
     });
   };
 
-  const onDelete = (id) => {
+  const onDelete = async (supplierId) => {
     if (!canManageSuppliers) return;
 
     const ok = confirm("Delete this supplier?");
     if (!ok) return;
-    setSuppliers((prev) => prev.filter((s) => s.id !== id));
-    if (editingId === id) resetForm();
-  };
 
-  const totalSuppliers = useMemo(() => suppliers.length, [suppliers]);
+    try {
+      setIsSaving(true);
+      await deleteSupplier(supplierId);
+      if (editingId === supplierId) resetForm();
+    } catch (err) {
+      console.error("Error deleting supplier:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -119,6 +112,11 @@ const Suppliers = () => {
               Read-only access for Accountant role.
             </p>
           )}
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
@@ -126,7 +124,7 @@ const Suppliers = () => {
             Total Suppliers
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {totalSuppliers}
+            {loading ? "—" : suppliers.length}
           </p>
         </div>
       </div>
@@ -158,9 +156,12 @@ const Suppliers = () => {
               <label className="text-xs text-gray-500">Supplier Name *</label>
               <input
                 value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="e.g. ABC Roofing Supplies"
+                disabled={isSaving}
               />
             </div>
 
@@ -173,6 +174,7 @@ const Suppliers = () => {
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="e.g. John Smith"
+                disabled={isSaving}
               />
             </div>
 
@@ -185,6 +187,7 @@ const Suppliers = () => {
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="e.g. +1 555 123 456"
+                disabled={isSaving}
               />
             </div>
 
@@ -198,6 +201,7 @@ const Suppliers = () => {
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="e.g. sales@vendor.com"
+                disabled={isSaving}
               />
             </div>
 
@@ -210,6 +214,7 @@ const Suppliers = () => {
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="Vendor address"
+                disabled={isSaving}
               />
             </div>
 
@@ -222,12 +227,23 @@ const Suppliers = () => {
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
                 placeholder="Payment terms, delivery info, etc."
+                disabled={isSaving}
               />
             </div>
           </div>
 
-          <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">
-            {editingId ? "Update Supplier" : "Add Supplier"}
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving
+              ? editingId
+                ? "Updating..."
+                : "Adding..."
+              : editingId
+                ? "Update Supplier"
+                : "Add Supplier"}
           </button>
         </form>
       )}
@@ -238,68 +254,78 @@ const Suppliers = () => {
           Supplier List
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
-              <tr>
-                <th className="p-3">Name</th>
-                <th className="p-3">Contact</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Email</th>
-                {canManageSuppliers && <th className="p-3 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {suppliers.map((s) => (
-                <tr
-                  key={s.id}
-                  className="border-t border-gray-100 dark:border-gray-800"
-                >
-                  <td className="p-3 font-medium text-gray-800 dark:text-white">
-                    {s.name}
-                  </td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {s.contactName || "—"}
-                  </td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {s.phone || "—"}
-                  </td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">
-                    {s.email || "—"}
-                  </td>
-
+        {/* {loading ? (
+          <div className="p-6 text-center text-gray-500 dark:text-gray-300">
+            Loading suppliers...
+          </div>
+        ) : ( */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
+                <tr>
+                  <th className="p-3">Name</th>
+                  <th className="p-3">Contact</th>
+                  <th className="p-3">Phone</th>
+                  <th className="p-3">Email</th>
                   {canManageSuppliers && (
-                    <td className="p-3 text-right space-x-3">
-                      <button
-                        onClick={() => onEdit(s)}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onDelete(s.id)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    <th className="p-3 text-right">Actions</th>
                   )}
                 </tr>
-              ))}
-
-              {suppliers.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={canManageSuppliers ? 5 : 4}
-                    className="p-6 text-center text-gray-500 dark:text-gray-300"
+              </thead>
+              <tbody>
+                {suppliers.map((s) => (
+                  <tr
+                    key={s.supplierId}
+                    className="border-t border-gray-100 dark:border-gray-800"
                   >
-                    No suppliers yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <td className="p-3 font-medium text-gray-800 dark:text-white">
+                      {s.name}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {s.contactName || "—"}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {s.phone || "—"}
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {s.email || "—"}
+                    </td>
+
+                    {canManageSuppliers && (
+                      <td className="p-3 text-right space-x-3">
+                        <button
+                          onClick={() => onEdit(s)}
+                          disabled={isSaving}
+                          className="text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => onDelete(s.supplierId)}
+                          disabled={isSaving}
+                          className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+
+                {suppliers.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={canManageSuppliers ? 5 : 4}
+                      className="p-6 text-center text-gray-500 dark:text-gray-300"
+                    >
+                      No suppliers yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        {/* )} */}
       </div>
     </div>
   );

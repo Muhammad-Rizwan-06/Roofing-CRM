@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import LeadsTable from "../components/leads/LeadsTable";
 import AddLeadModal from "../components/leads/AddLeadModal";
-import { safeParse } from "../utils/storageHelper";
 import { useLeads } from "../context/LeadContext";
-import { create } from "axios";
+import { useEstimates } from "../context/EstimatesContext";
 import { useProjects } from "../context/ProjectsContext";
 
 const normalizeLeadStatus = (status) => {
@@ -32,14 +31,16 @@ const Leads = () => {
     createLead,
     deleteLead: deleteLeadAPI,
   } = useLeads();
+  const { estimates, getAllEstimates, updateEstimate } = useEstimates();
   const { createProject } = useProjects();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // Fetch leads on mount
+  // Fetch leads and estimates on mount
   useEffect(() => {
     getAll();
-  }, [getAll]);
+    getAllEstimates();
+  }, [getAll, getAllEstimates]);
 
   // Auto-dismiss message after 3 seconds
   useEffect(() => {
@@ -95,9 +96,7 @@ const Leads = () => {
 
   // ✅ Convert Lead → Project (linked to accepted estimate if exists)
   const convertLead = async (lead) => {
-    const existingProjects = JSON.parse(localStorage.getItem("projects")) || [];
-    const estimates = JSON.parse(localStorage.getItem("estimates")) || [];
-
+    // Find accepted estimate for this lead from context
     const acceptedEstimate = estimates
       .filter((e) => Number(e.leadId) === Number(lead.leadId))
       .find((e) => e.status === "Accepted");
@@ -106,47 +105,56 @@ const Leads = () => {
       ? calcEstimateTotal(acceptedEstimate)
       : Number(lead.estimatedValue || 0);
 
-
-    const newProject = {
+    // Create project via API
+    const projectResult = await createProject({
       name: `Roof Project - ${lead.name}`,
       client: lead.name,
       status: "Pending",
+      leadId: lead.leadId,
       budget,
       supervisor: "",
       team: "",
-    //   materials: [],
-    //   workers: [],
-    //   tasks: [],
       source: "Lead Conversion",
-      estimateId: acceptedEstimate?.id || null,
-    };
+      estimateId: acceptedEstimate?.estimateId || null,
+    });
 
-
-    createProject(newProject); // Create project in API
-
-    // localStorage.setItem(
-    //   "projects",
-    //   JSON.stringify([...existingProjects, newProject]),
-    // );
-
-    // If we converted via accepted estimate, link that estimate to the project
-    if (acceptedEstimate) {
-      const updatedEstimates = estimates.map((e) =>
-        e.id === acceptedEstimate.id
-          ? {
-              ...e,
-              projectId,
-              projectName: newProject.name,
-              customer: lead.name,
-            }
-          : e,
-      );
-      localStorage.setItem("estimates", JSON.stringify(updatedEstimates));
+    if (!projectResult.ok) {
+      setMessage({
+        type: "error",
+        text: projectResult.message || "Failed to create project",
+      });
+      return;
     }
 
-    // Delete lead from API
-    await deleteLeadAPI(lead.leadId);
-    alert(`Lead "${lead.name}" converted to Project`);
+    const createdProjectId = projectResult.data?.projectId;
+
+    // If converted via accepted estimate, link that estimate to the project via API
+    if (acceptedEstimate && createdProjectId) {
+      const updateResult = await updateEstimate(acceptedEstimate.estimateId, {
+        projectId: createdProjectId,
+        projectName: `Roof Project - ${lead.name}`,
+      });
+
+      if (!updateResult.ok) {
+        console.warn(
+          `Estimate linking failed: ${updateResult.message}. Project created but not linked.`,
+        );
+      }
+    }
+
+    // Delete lead via API
+    const deleteResult = await deleteLeadAPI(lead.leadId);
+    if (deleteResult.ok) {
+      setMessage({
+        type: "success",
+        text: `Lead "${lead.name}" converted to Project`,
+      });
+    } else {
+      setMessage({
+        type: "error",
+        text: deleteResult.message || "Lead converted but deletion failed",
+      });
+    }
   };
 
   return (
@@ -165,11 +173,6 @@ const Leads = () => {
         </button>
       </div>
 
-      {/* {loading && (
-        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-          Loading leads...
-        </div>
-      )} */}
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
