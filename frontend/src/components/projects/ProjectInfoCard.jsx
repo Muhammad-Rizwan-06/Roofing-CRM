@@ -1,6 +1,15 @@
 import React from "react";
 
+
+import { useCompany } from "../../context/CompanyContext";
+
 const ProjectInfoCard = ({ project }) => {
+    const { company, getCompany } = useCompany();
+
+    useEffect(() => {
+      getCompany();
+    }, [getCompany]);
+  
   return (
     <div className="bg-white rounded-2xl shadow p-6 space-y-4 border">
 
@@ -19,7 +28,7 @@ const ProjectInfoCard = ({ project }) => {
         </p>
 
         <p>
-          <strong>Budget:</strong> ${project.budget}
+          <strong>Budget:</strong> {company?.currency} {project.budget}
         </p>
 
         <p>

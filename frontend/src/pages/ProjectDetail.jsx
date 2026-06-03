@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
 import { safeParse } from "../utils/storageHelper";
 import { useProjects } from "../context/ProjectsContext";
+import { useCompany } from "../context/CompanyContext";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -18,6 +19,12 @@ const ProjectDetails = () => {
     addTask: addTaskApi,
   } = useProjects();
   const navigate = useNavigate();
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   if (!projectId) {
     return (
@@ -290,7 +297,7 @@ const ProjectDetails = () => {
   ]);
 
 
-  const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+  const fmt = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
 
   return (
     <div className="space-y-6">
@@ -534,8 +541,8 @@ const ProjectDetails = () => {
         )}
 
         {(project?.materials || []).map((m) => (
-          <div key={m.id} className="border p-2">
-            {m.name} — {m.quantity} × {m.price} = ${m.total}
+          <div key={m.materialId} className="border p-2">
+            {m.name} — {m.quantity} × {m.price} = {company?.currency} {m.total}
           </div>
         ))}
 
@@ -593,9 +600,9 @@ const ProjectDetails = () => {
           </div>
         )}
 
-        {(project?.workers || []).map((w) => (
-          <div key={w.id} className="border p-2">
-            {w?.name} — {w?.role} — {w?.hours}h × ${w?.rate} = ${w?.total}
+        {(project?.workers || []).map((w,i) => (
+          <div key={i} className="border p-2">
+            {w?.name} — {w?.role} — {w?.hours}h × {company?.currency} {w?.rate} = {company?.currency} {w?.total}
           </div>
         ))}
 
@@ -643,8 +650,8 @@ const ProjectDetails = () => {
           </div>
         )}
 
-        {(project?.tasks || []).map((t) => (
-          <div key={t.id} className="border p-2">
+        {(project?.tasks || []).map((t,i) => (
+          <div key={i} className="border p-2">
             {t?.name} — {t?.assigned} — {t?.status}
           </div>
         ))}
@@ -657,11 +664,11 @@ const ProjectDetails = () => {
       {/* Internal finance (kept) */}
       <div className="bg-white dark:bg-gray-900 p-4 rounded shadow">
         <h2 className="font-semibold">Finance (Project Internal)</h2>
-        <p>Material Cost: ${materialCost}</p>
-        <p>Worker Cost: ${workerCost}</p>
-        <p className="font-bold">Total Cost: ${materialCost + workerCost}</p>
+        <p>Material Cost: {materialCost}</p>
+        <p>Worker Cost: {company?.currency} {workerCost}</p>
+        <p className="font-bold">Total Cost: {company?.currency} {materialCost + workerCost}</p>
         <p className="text-blue-600 font-bold">
-          Profit (Budget - Internal Cost): $
+          Profit (Budget - Internal Cost): {company?.currency}
           {Number(project?.budget || 0) - (materialCost + workerCost)}
         </p>
       </div>

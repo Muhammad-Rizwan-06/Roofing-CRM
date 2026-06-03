@@ -4,6 +4,18 @@ import AddLeadModal from "../components/leads/AddLeadModal";
 import { useLeads } from "../context/LeadContext";
 import { useEstimates } from "../context/EstimatesContext";
 import { useProjects } from "../context/ProjectsContext";
+import { useUser } from "../context/UserContext";
+import { generateSalt, hashPassword } from "../utils/password";
+
+const generateRandomPassword = (length = 12) => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 const normalizeLeadStatus = (status) => {
   // migrate old statuses -> pipeline equivalents
@@ -33,6 +45,7 @@ const Leads = () => {
   } = useLeads();
   const { estimates, getAllEstimates, updateEstimate } = useEstimates();
   const { createProject } = useProjects();
+  const { create: createUser } = useUser();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -95,63 +108,109 @@ const Leads = () => {
 
   // ✅ Convert Lead → Project (linked to accepted estimate if exists)
   const convertLead = async (lead) => {
-    // Find accepted estimate for this lead from context
-    const acceptedEstimate = estimates
-      .filter((e) => Number(e.leadId) === Number(lead.leadId))
-      .find((e) => e.status === "Accepted");
+    try {
+      let userId = lead.userId;
 
-    const budget = acceptedEstimate
-      ? calcEstimateTotal(acceptedEstimate)
-      : Number(lead.estimatedValue || 0);
+      // If userId is not available, create a new customer user first
+      if (!userId) {
+        const password = generateRandomPassword();
+        const salt = generateSalt();
+        const hashedPassword = await hashPassword(password, salt);
 
-    // Create project via API
-    const projectResult = await createProject({
-      name: `Roof Project - ${lead.name}`,
-      client: lead.name,
-      status: "Pending",
-      leadId: lead.leadId,
-      budget,
-      supervisor: "",
-      team: "",
-      source: "Lead Conversion",
-      estimateId: acceptedEstimate?.estimateId || null,
-    });
+        try {
+          const newUser = await createUser({
+            name: lead.name,
+            email: lead.email || "",
+            phone: lead.phone || "General",
+            roleName: "Customer",
+            status: "Active",
+            salt,
+            passwordHash: hashedPassword,
+          });
 
-    if (!projectResult.ok) {
-      setMessage({
-        type: "error",
-        text: projectResult.message || "Failed to create project",
-      });
-      return;
-    }
+          userId = newUser?.userId || newUser?.id;
 
-    const createdProjectId = projectResult.data?.projectId;
-
-    // If converted via accepted estimate, link that estimate to the project via API
-    if (acceptedEstimate && createdProjectId) {
-      const updateResult = await updateEstimate(acceptedEstimate.estimateId, {
-        projectId: createdProjectId,
-        projectName: `Roof Project - ${lead.name}`,
-      });
-
-      if (!updateResult.ok) {
-        console.warn(
-          `Estimate linking failed: ${updateResult.message}. Project created but not linked.`,
-        );
+          if (!userId) {
+            setMessage({
+              type: "error",
+              text: "Failed to create customer user for this lead",
+            });
+            return;
+          }
+        } catch (err) {
+          setMessage({
+            type: "error",
+            text: `Failed to create customer account: ${err.message}`,
+          });
+          return;
+        }
       }
-    }
 
-    // Delete lead via API
-    const deleteResult = await deleteLeadAPI(lead.leadId);
-    if (deleteResult.ok) {
-      setMessage({
-        type: "success",
-        text: `Lead "${lead.name}" converted to Project`,
+      // Find accepted estimate for this lead from context
+      const acceptedEstimate = estimates
+        .filter((e) => Number(e.leadId) === Number(lead.leadId))
+        .find((e) => e.status === "Accepted");
+
+      const budget = acceptedEstimate
+        ? calcEstimateTotal(acceptedEstimate)
+        : Number(lead.estimatedValue || 0);
+
+      // Create project via API
+      const projectResult = await createProject({
+        name: `Roof Project - ${lead.name}`,
+        client: lead.name,
+        status: "Pending",
+        leadId: lead.leadId,
+        clientEmail: lead.email || "",
+        userId: userId,
+        budget,
+        supervisor: "",
+        team: "",
+        source: "Lead Conversion",
+        estimateId: acceptedEstimate?.estimateId || null,
       });
-    } else {
+
+      if (!projectResult.ok) {
+        setMessage({
+          type: "error",
+          text: projectResult.message || "Failed to create project",
+        });
+        return;
+      }
+
+      const createdProjectId = projectResult.data?.projectId;
+
+      // If converted via accepted estimate, link that estimate to the project via API
+      if (acceptedEstimate && createdProjectId) {
+        const updateResult = await updateEstimate(acceptedEstimate.estimateId, {
+          projectId: createdProjectId,
+          projectName: `Roof Project - ${lead.name}`,
+        });
+
+        if (!updateResult.ok) {
+          console.warn(
+            `Estimate linking failed: ${updateResult.message}. Project created but not linked.`,
+          );
+        }
+      }
+
+      // Delete lead via API
+      const deleteResult = await deleteLeadAPI(lead.leadId);
+      if (deleteResult.ok) {
+        setMessage({
+          type: "success",
+          text: `Lead "${lead.name}" converted to Project`,
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: deleteResult.message || "Lead converted but deletion failed",
+        });
+      }
+    } catch (err) {
       setMessage({
         type: "error",
-        text: deleteResult.message || "Lead converted but deletion failed",
+        text: `Error during conversion: ${err.message}`,
       });
     }
   };
@@ -171,7 +230,6 @@ const Leads = () => {
           + Add Lead
         </button>
       </div>
-
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">

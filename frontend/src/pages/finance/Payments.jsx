@@ -4,13 +4,24 @@ import PaymentModal from "../../components/finance/PaymentModal";
 import { usePayments } from "../../context/PaymentsContext";
 import { useInvoices } from "../../context/InvoicesContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillInvoiceId = searchParams.get("invoiceId") || "";
 
   const [open, setOpen] = useState(false);
+
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
 
   const {
     payments,

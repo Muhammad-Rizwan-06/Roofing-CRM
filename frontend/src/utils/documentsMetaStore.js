@@ -17,7 +17,7 @@ export function addDocumentMeta(meta) {
 
 export function deleteDocumentMeta(id) {
   const list = getDocumentsMeta();
-  const updated = list.filter((d) => d.id !== id);
+  const updated = list.filter((d) => d.documentId !== id);
   saveDocumentsMeta(updated);
   return updated;
 }

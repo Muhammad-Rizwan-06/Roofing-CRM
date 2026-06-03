@@ -5,7 +5,8 @@ import { useEstimates } from "../../context/EstimatesContext";
 import { useProjects } from "../../context/ProjectsContext";
 import { useLeads } from "../../context/LeadContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const calcTotal = (items = [], taxRate = 0) => {
   const subtotal = items.reduce(
@@ -46,6 +47,16 @@ const Estimates = () => {
     updateEstimate,
     deleteEstimate,
   } = useEstimates();
+
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   const { projects, getAll: getAllProjects, createProject } = useProjects();
   const { leads, getAll: getAllLeads, updateLead, deleteLead } = useLeads();
@@ -266,8 +277,7 @@ const Estimates = () => {
 
           <tbody>
 
-            {!estimatesLoading &&
-              estimates.map((e) => {
+            {estimates.map((e) => {
                 const total = calcTotal(e.items, e.taxRate);
                 return (
                   <tr

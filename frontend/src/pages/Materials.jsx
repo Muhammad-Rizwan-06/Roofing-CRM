@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
 import { useMaterials } from "../context/MaterialsContext";
 import { useSuppliers } from "../context/SuppliersContext";
+import { useCompany } from "../context/CompanyContext";
 
 const Materials = () => {
   const { user } = useAuth();
@@ -32,6 +33,13 @@ const Materials = () => {
     sku: "",
     notes: "",
   });
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   // Load materials and suppliers on mount
   useEffect(() => {
@@ -403,7 +411,7 @@ const Materials = () => {
                   </td>
 
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                    ${Number(m.unitPrice || 0).toFixed(2)}
+                    {company?.currency} {Number(m.unitPrice || 0).toFixed(2)}
                   </td>
 
                   <td className="px-4 py-3 text-gray-800 dark:text-white">

@@ -8,12 +8,40 @@ import {
 } from "../constants/leadPipeline";
 import { useLeads } from "../context/LeadContext";
 import { useProjects } from "../context/ProjectsContext";
+import { useUser } from "../context/UserContext";
+import { generateSalt, hashPassword } from "../utils/password";
+import { useCompany } from "../context/CompanyContext";
+
+const generateRandomPassword = (length = 12) => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 const LeadsPipeline = () => {
-  const { leads, loading, error, getAll, createLead, updateLead: updateLeadAPI, deleteLead: deleteLeadAPI } = useLeads();
+  const {
+    leads,
+    loading,
+    error,
+    getAll,
+    createLead,
+    updateLead: updateLeadAPI,
+    deleteLead: deleteLeadAPI,
+  } = useLeads();
   const { createProject } = useProjects();
+  const { create: createUser } = useUser();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   // Fetch leads on mount
   useEffect(() => {
@@ -37,22 +65,36 @@ const LeadsPipeline = () => {
     });
 
     if (result.ok) {
-      setMessage({ type: "success", text: result.message || "Lead created successfully" });
+      setMessage({
+        type: "success",
+        text: result.message || "Lead created successfully",
+      });
       setOpen(false);
     } else {
-      setMessage({ type: "error", text: result.message || "Failed to create lead" });
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to create lead",
+      });
     }
   };
 
   const deleteLead = async (leadId) => {
-    const confirmed = window.confirm("Are you sure you want to delete this lead?");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this lead?",
+    );
     if (!confirmed) return;
 
     const result = await deleteLeadAPI(leadId);
     if (result.ok) {
-      setMessage({ type: "success", text: result.message || "Lead deleted successfully" });
+      setMessage({
+        type: "success",
+        text: result.message || "Lead deleted successfully",
+      });
     } else {
-      setMessage({ type: "error", text: result.message || "Failed to delete lead" });
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to delete lead",
+      });
     }
   };
 
@@ -63,7 +105,10 @@ const LeadsPipeline = () => {
     });
 
     if (!result.ok) {
-      setMessage({ type: "error", text: result.message || "Failed to update lead" });
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to update lead",
+      });
     }
   };
 
@@ -74,22 +119,77 @@ const LeadsPipeline = () => {
       return;
     }
 
+    try {
+      let userId = lead.userId;
 
-    const newProject = {
-      id: Date.now(),
-      name: `Roof Project - ${lead.name}`,
-      client: lead.name,
-      leadId: lead.leadId,
-      status: "Pending",
-      budget: Number(lead.estimatedValue || 0),
-      source: "Lead Conversion",
-    };
+      // If userId is not available, create a new customer user first
+      if (!userId) {
+        const password = generateRandomPassword();
+        const salt = generateSalt();
+        const hashedPassword = await hashPassword(password, salt);
 
-   await createProject(newProject); // Create project in API
+        try {
+          const newUser = await createUser({
+            name: lead.name,
+            email: lead.email || "",
+            phone: lead.phone || "+10000000000",
+            roleName: "Customer",
+            status: "Active",
+            salt,
+            passwordHash: hashedPassword,
+          });
 
-    // Delete lead from API
-    await deleteLeadAPI(lead.leadId);
-    alert(`Lead "${lead.name}" converted to Project`);
+          userId = newUser?.userId || newUser?.id;
+
+          if (!userId) {
+            setMessage({
+              type: "error",
+              text: "Failed to create customer user for this lead",
+            });
+            return;
+          }
+        } catch (err) {
+          setMessage({
+            type: "error",
+            text: `Failed to create customer account: ${err.message}`,
+          });
+          return;
+        }
+      }
+
+      const newProject = {
+        name: `Roof Project - ${lead.name}`,
+        client: lead.name,
+        leadId: lead.leadId,
+        userId: userId,
+        clientEmail: lead.email || "",
+        status: "Pending",
+        budget: Number(lead.estimatedValue || 0),
+        source: "Lead Conversion",
+      };
+
+      const projectResult = await createProject(newProject);
+
+      // Delete lead from API
+      const deleteResult = await deleteLeadAPI(lead.leadId);
+
+      if (projectResult.ok && deleteResult.ok) {
+        setMessage({
+          type: "success",
+          text: `Lead "${lead.name}" converted to Project`,
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: "Lead converted but there was an issue with cleanup",
+        });
+      }
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: `Error during conversion: ${err.message}`,
+      });
+    }
   };
 
   // ---------- Pipeline board grouping ----------
@@ -132,7 +232,7 @@ const LeadsPipeline = () => {
     e.preventDefault();
     const leadIdString = e.dataTransfer.getData("text/plain");
     if (!leadIdString) return;
-    
+
     const leadId = isNaN(leadIdString) ? leadIdString : Number(leadIdString);
     await updateLead(leadId, { status: stage, stage: stage }); // Update both status and stage for backward compatibility
   };
@@ -193,7 +293,7 @@ const LeadsPipeline = () => {
             Pipeline Value
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {formatMoney(metrics.totalValue)}
+            {formatMoney(metrics.totalValue, company?.currency)}
           </p>
         </div>
 
@@ -202,14 +302,14 @@ const LeadsPipeline = () => {
             Weighted Forecast
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {formatMoney(metrics.weightedForecast)}
+            {formatMoney(metrics.weightedForecast, company?.currency)}
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow">
           <p className="text-xs text-gray-500 dark:text-gray-300">Won Value</p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {formatMoney(metrics.wonValue)}
+            {formatMoney(metrics.wonValue, company?.currency)}
           </p>
         </div>
       </div>
@@ -280,7 +380,7 @@ const LeadsPipeline = () => {
                         />
                         <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-300">
                           Probability: {Math.round(prob * 100)}% • Forecast:{" "}
-                          {formatMoney((lead.estimatedValue || 0) * prob)}
+                          {formatMoney((lead.estimatedValue || 0) * prob, company?.currency)}
                         </p>
                       </div>
 

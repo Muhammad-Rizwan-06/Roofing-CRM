@@ -4,7 +4,8 @@ import InvoiceModal from "../../components/finance/InvoiceModal";
 import { useInvoices } from "../../context/InvoicesContext";
 import { useProjects } from "../../context/ProjectsContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const calcTotal = (items = [], taxRate = 0) => {
   const subtotal = items.reduce(
@@ -21,6 +22,14 @@ const Invoices = () => {
 
   const [open, setOpen] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
 
   // Use API contexts instead of localStorage
   const {
@@ -76,6 +85,7 @@ const Invoices = () => {
         projectName: project?.name || payload.projectName || "",
         customer: project?.client || payload.customer,
         leadId: project?.leadId ?? null,
+        userId: project?.userId ?? null,
       };
 
 

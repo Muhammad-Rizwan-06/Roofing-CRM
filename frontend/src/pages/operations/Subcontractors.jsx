@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSubcontractors } from "../../context/SubContractorContext";
+import { useCompany } from "../../context/CompanyContext";
 
 const Subcontractors = () => {
   const {
@@ -25,6 +26,12 @@ const Subcontractors = () => {
     notes: "",
     active: "Yes",
   });
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   useEffect(() => {
     const init = async () => {
@@ -261,7 +268,7 @@ const Subcontractors = () => {
                   {s.trade || "—"}
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                  ${Number(s.rate || 0).toFixed(2)}
+                  {company?.currency} {Number(s.rate || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
                   {s.active}

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useCompany } from "../../context/CompanyContext";
 
 const statusStyles = {
   Pending: "bg-gray-100 text-gray-700",
@@ -15,6 +16,12 @@ const ProjectsTable = ({
   readOnly = false,
   basePath = "/projects",
 }) => {
+    const { company, getCompany } = useCompany();
+
+    useEffect(() => {
+      getCompany();
+    }, [getCompany]);
+  
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
       <table className="w-full text-left">
@@ -68,7 +75,7 @@ const ProjectsTable = ({
                   </div>
                 </td>
 
-                <td className="p-3">${project.budget}</td>
+                <td className="p-3">{company?.currency} {project.budget}</td>
                 <td className="p-3">{project.supervisor || "-"}</td>
                 <td className="p-3">{project.team || "-"}</td>
 

@@ -44,7 +44,7 @@ const LeadsTable = ({ leads, onDelete, onConvert }) => {
               </tr>
             ) : (
               leads.map((lead) => (
-                <tr key={lead.id} className="border-b hover:bg-gray-800">
+                <tr key={lead.leadId} className="border-b hover:bg-gray-800">
                   <td className="py-3">{lead.name}</td>
                   <td>{lead.email}</td>
                   <td>{lead.phone}</td>

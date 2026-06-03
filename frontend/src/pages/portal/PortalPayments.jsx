@@ -1,19 +1,36 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomerProjectIdSet } from "../../utils/customerScope";
-import { safeParse } from "../../utils/storageHelper";
+import { useProjects } from "../../context/ProjectsContext";
+import { useInvoices } from "../../context/InvoicesContext";
+import {usePayments} from "../../context/PaymentsContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
+
 
 export default function PortalPayments() {
   const { user } = useAuth();
   const [sp] = useSearchParams();
   const invoiceId = sp.get("invoiceId");
 
-  const projects = useMemo(() => safeParse("projects"), []);
-  const invoices = useMemo(() => safeParse("invoices"), []);
-  const payments = useMemo(() => safeParse("payments"), []);
+  const { projects, getAll: fetchProjects } = useProjects();
+  const { invoices, getAllInvoices: fetchInvoices } = useInvoices();
+  const { payments, fetchPayments } = usePayments();
+  const { company, getCompany } = useCompany();
+
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchInvoices();
+    fetchPayments();
+  }, [fetchProjects, fetchInvoices, fetchPayments]);
 
   const myProjectIds = useMemo(
     () => getCustomerProjectIdSet(projects, user),
@@ -24,7 +41,7 @@ export default function PortalPayments() {
     return new Set(
       invoices
         .filter((inv) => myProjectIds.has(String(inv.projectId)))
-        .map((inv) => String(inv.id)),
+        .map((inv) => String(inv.invoiceId)),
     );
   }, [invoices, myProjectIds]);
 
@@ -66,9 +83,9 @@ export default function PortalPayments() {
           </thead>
 
           <tbody>
-            {filtered.map((p) => (
+            {filtered.map((p, i) => (
               <tr
-                key={p.id}
+                key={i}
                 className="border-t border-gray-100 dark:border-gray-800"
               >
                 <td className="p-3 font-medium">{p.paymentNo}</td>

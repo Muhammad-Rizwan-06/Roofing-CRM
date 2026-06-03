@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCompany } from "../../context/CompanyContext";
 
 const emptyItem = { description: "", qty: 1, unitPrice: 0 };
+
 
 const calcSubtotal = (items) =>
   (items || []).reduce(
@@ -29,6 +31,8 @@ const EstimateModal = ({
     items: [{ ...emptyItem }],
   });
 
+  const { company, getCompany } = useCompany();
+
   // Prefill when opened from Leads (query param)
   useEffect(() => {
     if (!open) return;
@@ -45,6 +49,10 @@ const EstimateModal = ({
       }
     }
   }, [open, prefillLeadId, leads]);
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
 
   const subtotal = useMemo(() => calcSubtotal(form.items), [form.items]);
   const tax = useMemo(
@@ -293,9 +301,9 @@ const EstimateModal = ({
 
             <div className="px-4 py-3 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-200">
               <div className="flex justify-end gap-8">
-                <span>Subtotal: ${subtotal.toFixed(2)}</span>
-                <span>Tax: ${tax.toFixed(2)}</span>
-                <span className="font-semibold">Total: ${total.toFixed(2)}</span>
+                <span>Subtotal: {company?.currency} {subtotal.toFixed(2)}</span>
+                <span>Tax: {company?.currency} {tax.toFixed(2)}</span>
+                <span className="font-semibold">Total: {company?.currency} {total.toFixed(2)}</span>
               </div>
             </div>
           </div>

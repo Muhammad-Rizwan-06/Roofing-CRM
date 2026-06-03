@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useEmployees } from "../../context/EmployeesContext";
 
+import { useCompany } from "../../context/CompanyContext";
+
 const TeamsEmployees = () => {
   const {
     employees,
@@ -11,6 +13,7 @@ const TeamsEmployees = () => {
     updateEmployee,
     deleteEmployee,
   } = useEmployees();
+
 
   const [editId, setEditId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -24,6 +27,12 @@ const TeamsEmployees = () => {
     hourlyRate: "",
     availability: "Available",
   });
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   useEffect(() => {
     const init = async () => {
@@ -259,7 +268,7 @@ const TeamsEmployees = () => {
                   {e.role || "—"}
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                  ${Number(e.hourlyRate || 0).toFixed(2)}
+                  {company?.currency} {Number(e.hourlyRate || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
                   {e.phone || "—"}

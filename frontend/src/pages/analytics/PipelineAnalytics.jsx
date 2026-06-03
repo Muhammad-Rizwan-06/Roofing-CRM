@@ -14,14 +14,9 @@ import { useEffect } from "react"; // add to existing React import
 import { useLeads } from "../../context/LeadContext";
 import { useEstimates } from "../../context/EstimatesContext";
 import { useProjects } from "../../context/ProjectsContext";
+import { useCompany } from "../../context/CompanyContext";
 
 
-const money = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
 
 const STAGES = [
   "New",
@@ -54,12 +49,22 @@ const PipelineAnalytics = () => {
     const { leads, getAll: fetchLeads } = useLeads();
     const { estimates, getAllEstimates } = useEstimates();
     const { projects, getAll: fetchProjects } = useProjects();
+    const { company, getCompany } = useCompany();
 
     useEffect(() => {
       fetchLeads();
       getAllEstimates();
       fetchProjects();
+      getCompany();
     }, []);
+
+    const money = (n) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: `${company?.currency || "USD"}`,
+        maximumFractionDigits: 0,
+      }).format(Number(n || 0));
+      
 
   const data = useMemo(() => {
     const stageCounts = {};

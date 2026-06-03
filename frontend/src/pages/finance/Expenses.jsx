@@ -4,7 +4,8 @@ import ExpenseModal from "../../components/finance/ExpenseModal";
 import { useExpenses } from "../../context/ExpensesContext";
 import { useProjects } from "../../context/ProjectsContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const Expenses = () => {
   const navigate = useNavigate();
@@ -21,6 +22,15 @@ const Expenses = () => {
     addExpense,
     deleteExpense,
   } = useExpenses();
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+
 
   const {
     projects,

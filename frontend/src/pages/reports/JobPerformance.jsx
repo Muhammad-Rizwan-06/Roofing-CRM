@@ -12,24 +12,33 @@ import {
 import { useEffect } from "react"; 
 import { useProjects } from "../../context/ProjectsContext";
 import { useExpenses } from "../../context/ExpensesContext";
+import { useCompany } from "../../context/CompanyContext";
 
-const money = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
+
 
 const COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b"];
 
 const JobPerformance = () => {
     const { projects, getAll: fetchProjects} = useProjects();
     const { expenses, fetchExpenses } = useExpenses();
+    const { company, getCompany } = useCompany();
+
+    useEffect(() => {
+      getCompany();
+    }, [getCompany]);
+  
 
     useEffect(() => {
       fetchProjects();
       fetchExpenses();
     }, []);
+
+    const money = (n) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: `${company?.currency || "USD"}`,
+        maximumFractionDigits: 0,
+      }).format(Number(n || 0));
 
   const summary = useMemo(() => {
     let active = 0;

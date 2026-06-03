@@ -9,14 +9,10 @@ export const normText = (v) => String(v || "").trim().toLowerCase();
 export function isProjectForCustomer(project, user) {
   if (!project || !user) return false;
 
-  const uEmail = normEmail(user.email);
-  const pEmail = normEmail(project.clientEmail || project.customerEmail);
+  const userId = String(user.userId).trim();
+  const pclient = String(project.userId || "").trim();
 
-  if (uEmail && pEmail) return uEmail === pEmail;
-
-  const uName = normText(user.name);
-  const pClient = normText(project.client);
-  return Boolean(uName && pClient && uName === pClient);
+  return Boolean(userId && pclient && userId === pclient);
 }
 
 export function getCustomerProjects(allProjects = [], user) {
@@ -24,6 +20,6 @@ export function getCustomerProjects(allProjects = [], user) {
 }
 
 export function getCustomerProjectIdSet(allProjects = [], user) {
-  const ids = getCustomerProjects(allProjects, user).map((p) => String(p.id));
+  const ids = getCustomerProjects(allProjects, user).map((p) => String(p.projectId));
   return new Set(ids);
 }

@@ -6,7 +6,7 @@ const KanbanColumn = ({ title, leads, onMove }) => {
       <div className="space-y-3">
         {leads.map((lead) => (
           <div
-            key={lead.id}
+            key={lead.leadId}
             className="bg-white p-3 rounded-lg shadow cursor-pointer hover:bg-gray-50"
             onClick={() => onMove(lead)}
           >

@@ -56,7 +56,7 @@ const TaskForm = ({ onAdd, projects }) => {
       >
         <option value="">Select Project</option>
         {projects.map((p) => (
-          <option key={p.id} value={p.name}>
+          <option key={p.projectId} value={p.name}>
             {p.name}
           </option>
         ))}

@@ -3,10 +3,23 @@ import ProjectsTable from "../components/projects/ProjectsTable";
 import AddProjectModal from "../components/projects/AddProjectModal";
 import { useAuth } from "../context/AuthContext";
 import { useProjects } from "../context/ProjectsContext";
+import { useUser } from "../context/UserContext";
 import { ROLE } from "../config/accessControl";
+import { generateSalt, hashPassword } from "../utils/password";
+
+const generateRandomPassword = (length = 12) => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 const Projects = () => {
   const { user } = useAuth();
+  const { create: createUser } = useUser();
   const roleName = user?.roleName;
 
   const isAdmin = roleName === ROLE.ADMIN;
@@ -82,6 +95,35 @@ const Projects = () => {
       }
     } else {
       // ✅ Create new project
+      let userId = project.userId;
+
+      // If no userId, create a new customer account
+      if (!userId) {
+        try {
+          const randomPassword = generateRandomPassword();
+          const salt = generateSalt();
+          const hashedPassword = await hashPassword(randomPassword, salt);
+
+          const newUser = await createUser({
+            name: project.client,
+            email: project.clientEmail,
+            phone: "+10000000000", // Placeholder phone number
+            roleName: "Customer",
+            status: "Active",
+            saltB64: salt,
+            hashB64: hashedPassword,
+          });
+
+          userId = newUser?.userId || newUser?.user?.userId;
+        } catch (err) {
+          setMessage({
+            type: "error",
+            text: "Failed to create customer account",
+          });
+          return;
+        }
+      }
+
       const result = await createProject({
         name: project.name,
         client: project.client,
@@ -90,6 +132,7 @@ const Projects = () => {
         supervisor: project.supervisor || "",
         team: project.team || "",
         budget: Number(project.budget || 0),
+        userId: userId || "",
         source: "Through Form",
       });
 
@@ -141,11 +184,8 @@ const Projects = () => {
   const handleStatusChange = async (projectId, newStatus) => {
     if (!canManageProjects) return;
 
-    const project = projects.find(
-      (p) => p.projectId === projectId,
-    );
+    const project = projects.find((p) => p.projectId === projectId);
     if (!project) return;
-
 
     const result = await updateProject(projectId, {
       status: newStatus,
@@ -205,20 +245,6 @@ const Projects = () => {
           </button>
         )}
       </div>
-
-      {/* ✅ Loading state */}
-      {/* {loading && (
-        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-          Loading projects...
-        </div>
-      )} */}
-
-      {/* ✅ Error state */}
-      {/* {error && (
-        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
-          Error: {error}
-        </div>
-      )} */}
 
       {/* ✅ Message state */}
       {message && (

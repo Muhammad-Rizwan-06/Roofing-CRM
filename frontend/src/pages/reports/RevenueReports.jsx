@@ -12,13 +12,8 @@ import { useEffect } from "react";
 import { usePayments } from "../../context/PaymentsContext";
 import { useInvoices } from "../../context/InvoicesContext";
 import { useExpenses } from "../../context/ExpensesContext";
+import { useCompany } from "../../context/CompanyContext";
 
-const money = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
 
 const getMonthKey = (dateStr) => {
   const d = new Date(dateStr);
@@ -48,11 +43,26 @@ const RevenueReports = () => {
   const { invoices, getAllInvoices } = useInvoices();
   const { expenses, fetchExpenses } = useExpenses();
 
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+
   useEffect(() => {
     fetchPayments();
     getAllInvoices();
     fetchExpenses();
   }, []);
+
+  const money = (n) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: `${company?.currency || "USD"}`,
+      maximumFractionDigits: 0,
+    }).format(Number(n || 0));
+  
 
   const { kpis, chartData } = useMemo(() => {
     // Monthly aggregation

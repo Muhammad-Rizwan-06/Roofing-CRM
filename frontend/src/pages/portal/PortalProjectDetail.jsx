@@ -1,22 +1,40 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { isProjectForCustomer } from "../../utils/customerScope";
-import { safeParse } from "../../utils/storageHelper";
+import { useProjects } from "../../context/ProjectsContext";
+import { useInvoices } from "../../context/InvoicesContext";
+import { useDocuments } from "../../context/DocumentsContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 export default function PortalProjectDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
 
-  const projects = useMemo(() => safeParse("projects"), []);
-  const invoices = useMemo(() => safeParse("invoices"), []);
-  const docsMeta = useMemo(() => safeParse("documents_meta"), []);
+  const {projects, getAll : fetchProjects} = useProjects();
+  const { invoices, getAllInvoices: fetchInvoices } = useInvoices();
+  const { documents: docsMeta, fetchDocuments: fetchDocsMeta } = useDocuments();
+  const { company, getCompany } = useCompany();
+
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+
+  useEffect(() => {
+    fetchProjects();
+    fetchInvoices();
+    fetchDocsMeta();
+  }, [fetchProjects, fetchInvoices, fetchDocsMeta]);
 
   const project = useMemo(() => {
-    const p = projects.find((x) => Number(x.id) === Number(id));
+    const p = projects.find((x) => (x.projectId) === (id));
     return p || null;
   }, [projects, id]);
 
@@ -25,14 +43,14 @@ export default function PortalProjectDetail() {
     return <Navigate to="/unauthorized" replace />;
 
   const projectInvoices = invoices.filter(
-    (inv) => Number(inv.projectId) === Number(project.id),
+    (inv) => (inv.projectId) === (project.projectId),
   );
   const paid = projectInvoices.reduce(
     (s, inv) => s + Number(inv.amountPaid || 0),
     0,
   );
   const docsCount = docsMeta.filter(
-    (d) => Number(d.projectId) === Number(project.id),
+    (d) => (d.projectId) === (project.projectId),
   ).length;
 
   return (
@@ -80,7 +98,7 @@ export default function PortalProjectDetail() {
         <button
           className="text-blue-600 hover:underline"
           onClick={() =>
-            nav(`/portal/documents/contracts?projectId=${project.id}`)
+            nav(`/portal/documents/contracts?projectId=${project.projectId}`)
           }
         >
           View Contracts
@@ -89,7 +107,7 @@ export default function PortalProjectDetail() {
         <button
           className="text-blue-600 hover:underline"
           onClick={() =>
-            nav(`/portal/finance/invoices?projectId=${project.id}`)
+            nav(`/portal/finance/invoices?projectId=${project.projectId}`)
           }
         >
           View Invoices

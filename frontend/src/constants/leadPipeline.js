@@ -1,5 +1,6 @@
 // src/constants/leadPipeline.js
 
+
 export const LEAD_PIPELINE_STAGES = [
   "New",
   "Inspection Scheduled",
@@ -19,9 +20,9 @@ export const STAGE_PROBABILITY = {
   Lost: 0,
 };
 
-export const formatMoney = (n) =>
+export const formatMoney = (n, currency = "USD") =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: `${currency}`,
     maximumFractionDigits: 0,
   }).format(Number(n || 0));

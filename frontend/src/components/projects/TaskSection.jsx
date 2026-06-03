@@ -17,7 +17,7 @@ const TaskSection = ({ project, setProject }) => {
   // Toggle Status
   const toggleStatus = (taskId) => {
     const updatedTasks = project.tasks.map((task) =>
-      task.id === taskId
+      task.taskId === taskId
         ? {
             ...task,
             status: task.status === "Pending" ? "Completed" : "Pending",
@@ -33,7 +33,7 @@ const TaskSection = ({ project, setProject }) => {
 
   // Delete Task
   const deleteTask = (taskId) => {
-    const updatedTasks = project.tasks.filter((t) => t.id !== taskId);
+    const updatedTasks = project.tasks.filter((t) => t.taskId !== taskId);
 
     updateProjectInStorage({
       ...project,
@@ -50,7 +50,7 @@ const TaskSection = ({ project, setProject }) => {
     }
 
     const updatedProjects = projects.map((p) =>
-      p.id === updatedProject.id ? updatedProject : p,
+      p.projectId === updatedProject.projectId ? updatedProject : p,
     );
 
     localStorage.setItem("projects", JSON.stringify(updatedProjects));
@@ -79,7 +79,7 @@ const TaskSection = ({ project, setProject }) => {
         ) : (
           project.tasks.map((task) => (
             <div
-              key={task.id}
+              key={task.taskId}
               className="flex justify-between items-center border p-3 rounded-lg"
             >
               <div>
@@ -97,14 +97,14 @@ const TaskSection = ({ project, setProject }) => {
 
               <div className="space-x-2">
                 <button
-                  onClick={() => toggleStatus(task.id)}
+                  onClick={() => toggleStatus(task.taskId)}
                   className="text-blue-500"
                 >
                   Toggle
                 </button>
 
                 <button
-                  onClick={() => deleteTask(task.id)}
+                  onClick={() => deleteTask(task.taskId)}
                   className="text-red-500"
                 >
                   Delete

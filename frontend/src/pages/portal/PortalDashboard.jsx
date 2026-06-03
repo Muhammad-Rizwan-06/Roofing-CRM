@@ -1,12 +1,15 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   getCustomerProjects,
   getCustomerProjectIdSet,
 } from "../../utils/customerScope";
-import { safeParse } from "../../utils/storageHelper";
+import { useProjects } from "../../context/ProjectsContext";
+import { useInvoices } from "../../context/InvoicesContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
+
 
 const calcInvoiceTotal = (inv) => {
   const items = inv?.items || [];
@@ -21,8 +24,19 @@ const calcInvoiceTotal = (inv) => {
 export default function PortalDashboard() {
   const { user } = useAuth();
 
-  const projects = useMemo(() => safeParse("projects"), []);
-  const invoices = useMemo(() => safeParse("invoices"), []);
+  const {projects, getAll : fetchProjects} = useProjects();
+  const { invoices, getAllInvoices: fetchInvoices } = useInvoices();
+  const { company, getCompany } = useCompany();
+  
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchInvoices();
+  }, [fetchProjects, fetchInvoices]);
 
   const myProjects = useMemo(
     () => getCustomerProjects(projects, user),
@@ -33,10 +47,8 @@ export default function PortalDashboard() {
     [projects, user],
   );
 
-  const myInvoices = useMemo(
-    () => invoices.filter((inv) => myProjectIds.has(String(inv.projectId))),
-    [invoices, myProjectIds],
-  );
+  const myInvoices =  invoices.filter((inv) => myProjectIds.has(String(inv.projectId)));
+
 
   const stats = useMemo(() => {
     const totalProjects = myProjects.length;
@@ -114,9 +126,9 @@ export default function PortalDashboard() {
             </tr>
           </thead>
           <tbody>
-            {myProjects.map((p) => (
+            {myProjects.map((p,i) => (
               <tr
-                key={p.id}
+                key={i}
                 className="border-t border-gray-100 dark:border-gray-800"
               >
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-100">

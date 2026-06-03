@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       const foundUser = response.user;
 
       const sessionUser = {
-        id: foundUser.userId,
+        userId: foundUser.userId,
         name: foundUser.name,
         email: foundUser.email,
         roleId: foundUser.roleId,

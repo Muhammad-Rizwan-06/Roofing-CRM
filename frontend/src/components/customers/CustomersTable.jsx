@@ -27,13 +27,13 @@ const CustomersTable = ({ customers }) => {
             </tr>
           ) : (
             customers.map((customer) => (
-              <tr key={customer.id} className="border-b">
+              <tr key={customer.userId} className="border-b">
 
                 <td className="py-3 font-medium">
 
                   {/* 🔥 CLICKABLE */}
                   <Link
-                    to={`/customers/${customer.name}`}
+                    to={`/customers/${customer.userId}`}
                     className="text-blue-600 hover:underline"
                   >
                     {customer.name}

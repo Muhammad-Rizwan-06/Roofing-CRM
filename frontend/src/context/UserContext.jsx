@@ -3,16 +3,17 @@ import { apiClient } from "../utils/apiClient";
 
 const UserContext = createContext();
 
-export const UserUser = () => {
+export const useUser = () => {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error("UserUser must be used within an UserProvider");
+    throw new Error("useUser must be used within an UserProvider");
   }
   return context;
 };
 
 export const UserProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);
+  const [customers, setCustomers] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -25,8 +26,6 @@ export const UserProvider = ({ children }) => {
       const response = await apiClient.get("/users");
       setEmployees(response);
       return response;
-
-      return employees;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -34,6 +33,23 @@ export const UserProvider = ({ children }) => {
       setLoading(false);
     }
   }, [employees]);
+
+  // Get all employees
+  const getCustomers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await apiClient.get("/users/customers");
+      setCustomers(response);
+      return response;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [customers]);
 
   // Create a new employee
   const create = useCallback(async (employeeData) => {
@@ -59,38 +75,41 @@ export const UserProvider = ({ children }) => {
     (userId) => {
       return employees.find((employee) => employee.userId === userId);
     },
-    [employees]
+    [employees],
   );
 
   // Update an employee
-  const update = useCallback(async (userId, employeeData) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const update = useCallback(
+    async (userId, employeeData) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const response = await apiClient.put(`/users/${userId}`, employeeData);
-      const updatedEmployee = response;
+        const response = await apiClient.put(`/users/${userId}`, employeeData);
+        const updatedEmployee = response;
 
-      setEmployees((prevEmployees) =>
-        prevEmployees.map((employee) =>
-          employee.userId === userId
-            ? {
-                ...employee,
-                ...employeeData,
-                updatedAt: new Date().toISOString(),
-              }
-            : employee
-        )
-      );
+        setEmployees((prevEmployees) =>
+          prevEmployees.map((employee) =>
+            employee.userId === userId
+              ? {
+                  ...employee,
+                  ...employeeData,
+                  updatedAt: new Date().toISOString(),
+                }
+              : employee,
+          ),
+        );
 
-      return getById(userId);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [getById]);
+        return getById(userId);
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getById],
+  );
 
   // Delete an employee
   const delete_ = useCallback(async (userId) => {
@@ -101,7 +120,7 @@ export const UserProvider = ({ children }) => {
       await apiClient.delete(`/users/${userId}`);
 
       setEmployees((prevEmployees) =>
-        prevEmployees.filter((employee) => employee.userId !== userId)
+        prevEmployees.filter((employee) => employee.userId !== userId),
       );
       return true;
     } catch (err) {
@@ -125,13 +144,13 @@ export const UserProvider = ({ children }) => {
     create,
     getById,
     update,
+    getCustomers,
+    customers,
     delete: delete_,
     clearError,
   };
 
-  return (
-    <UserContext.Provider value={value}>{children}</UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
 export default UserContext;

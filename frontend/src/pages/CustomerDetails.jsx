@@ -4,8 +4,7 @@ import CustomerProjects from "../components/customers/CustomerProjects";
 import { useProjects } from "../context/ProjectsContext";
 
 const CustomerDetails = () => {
-  const { name } = useParams();
-  const decodedName = decodeURIComponent(name); 
+  const { userId } = useParams();
   const { projects, loading, error, getAll } = useProjects();
 
   // Fetch all projects on component mount
@@ -15,19 +14,10 @@ const CustomerDetails = () => {
 
   // Filter projects of this customer
   const customerProjects = useMemo(
-    () => projects.filter((p) => p.client?.trim() === decodedName?.trim()),
-    [projects, decodedName],
+    () => projects.filter((p) => p.userId === userId),
+    [projects, userId],
   );
-
-//   if (loading) {
-//     return (
-//       <div className="p-4">
-//         <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
-//           Loading customer details...
-//         </div>
-//       </div>
-//     );
-//   }
+  const name = customerProjects[0]?.client || "Unknown Customer";
 
   if (error) {
     return (
@@ -45,7 +35,8 @@ const CustomerDetails = () => {
 
   return (
     <div className="space-y-6 p-4 ">
-      <h1 className="text-2xl font-bold text-white">{decodedName}</h1>
+      <h1 className="text-2xl font-bold text-white">{userId}</h1>
+      <p className="text-gray-600 dark:text-gray-400">{name}</p>
 
       <CustomerProjects projects={customerProjects} />
     </div>

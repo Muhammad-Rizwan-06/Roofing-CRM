@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useContracts } from "../../context/ContractContext";
 import { useProjects } from "../../context/ProjectsContext";
+import { useUser } from "../../context/UserContext";
 import { runMaintenanceScheduler } from "../../utils/maintenanceScheduler";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -25,6 +27,7 @@ const emptyForm = () => ({
   price: 0,
   autoInvoice: false,
   status: "Active",
+  userId: "",
 });
 
 export default function MaintenanceContracts() {
@@ -44,21 +47,32 @@ export default function MaintenanceContracts() {
     addContractInspection, // ✅
   } = useContracts();
 
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
+
+
   const { projects, getAll } = useProjects(); // ✅ removed addInspection
+  const { getCustomers, customers = [] } = useUser();
 
   const [pageLoading, setPageLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(() => emptyForm());
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   useEffect(() => {
     const init = async () => {
-      await Promise.all([getAllContracts(), getAll()]);
+      await Promise.all([getAllContracts(), getAll(), getCustomers()]);
       setPageLoading(false);
     };
     init();
-  }, [getAllContracts, getAll]);
+  }, [getAllContracts, getAll, getCustomers]);
 
   const totalActive = useMemo(
     () => contracts.filter((c) => c.status === "Active").length,
@@ -68,6 +82,57 @@ export default function MaintenanceContracts() {
   const reset = () => {
     setEditId(null);
     setForm(emptyForm());
+    setSelectedCustomer("");
+  };
+
+  // Handle project selection - auto-fill customer from project
+  const handleProjectChange = (projectId) => {
+    if (projectId) {
+      const project = projects.find((proj) => proj.projectId === projectId);
+      if (project) {
+        setForm((prev) => ({
+          ...prev,
+          projectId,
+          customerName: project.client || "",
+          customerEmail: project.clientEmail || "",
+          userId: project.userId || "",
+        }));
+      }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        projectId: "",
+        customerName: "",
+        customerEmail: "",
+        userId: "",
+      }));
+    }
+    setSelectedCustomer(""); // Clear customer selection
+  };
+
+  // Handle customer selection - auto-fill customer data
+  const handleCustomerSelect = (customerId) => {
+    setSelectedCustomer(customerId);
+    setForm((p) => ({ ...p, projectId: "" })); // Clear project selection
+
+    if (customerId) {
+      const customer = customers.find((c) => c.userId === customerId);
+      if (customer) {
+        setForm((prev) => ({
+          ...prev,
+          customerName: customer.name || "",
+          customerEmail: customer.email || "",
+          userId: customer.userId || "",
+        }));
+      }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        customerName: "",
+        customerEmail: "",
+        userId: "",
+      }));
+    }
   };
 
   const openAdd = () => {
@@ -95,7 +160,9 @@ export default function MaintenanceContracts() {
       price: Number(c.price || 0),
       autoInvoice: Boolean(c.autoInvoice),
       status: c.status || "Active",
+      userId: c.userId || "",
     });
+    setSelectedCustomer(c.userId || "");
     setOpen(true);
   };
 
@@ -122,6 +189,7 @@ export default function MaintenanceContracts() {
       customerEmail: form.customerEmail.trim().toLowerCase(),
       projectId: form.projectId || null,
       projectName: selectedProject?.name?.trim() || form.projectName || "",
+      userId: form.userId || "",
       propertyAddress: {
         line1: form.propertyLine1.trim(),
         line2: form.propertyLine2.trim(),
@@ -390,6 +458,7 @@ export default function MaintenanceContracts() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, customerName: e.target.value }))
                   }
+                  readOnly={!!(form.projectId || selectedCustomer)}
                 />
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
@@ -398,14 +467,13 @@ export default function MaintenanceContracts() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, customerEmail: e.target.value }))
                   }
+                  readOnly={!!(form.projectId || selectedCustomer)}
                 />
 
                 <select
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
                   value={form.projectId}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, projectId: e.target.value }))
-                  }
+                  onChange={(e) => handleProjectChange(e.target.value)}
                 >
                   <option value="">(Optional) Link a Project</option>
                   {projects.map((p) => (
@@ -414,6 +482,22 @@ export default function MaintenanceContracts() {
                     </option>
                   ))}
                 </select>
+
+                {/* Customer Selector (when no project selected) */}
+                {!form.projectId && (
+                  <select
+                    className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={selectedCustomer}
+                    onChange={(e) => handleCustomerSelect(e.target.value)}
+                  >
+                    <option value="">-- Select Customer --</option>
+                    {customers.map((c) => (
+                      <option key={c.userId} value={c.userId}>
+                        {c.name} ({c.email})
+                      </option>
+                    ))}
+                  </select>
+                )}
 
                 <input
                   className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white md:col-span-3"

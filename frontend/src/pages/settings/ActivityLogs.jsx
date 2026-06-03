@@ -113,9 +113,9 @@ const ActivityLogs = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => (
+              {filtered.map((l,i) => (
                 <tr
-                  key={l.id}
+                  key={i}
                   className="border-t border-gray-100 dark:border-gray-800"
                 >
                   <td className="p-3 whitespace-nowrap">{fmt(l.createdAt)}</td>

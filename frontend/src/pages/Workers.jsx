@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 
+import { useCompany } from "../context/CompanyContext";
+
 // ✅ Safe parser
 const getLocalData = (key) => {
   try {
@@ -19,6 +21,12 @@ const Workers = () => {
     hours: "",
     rate: "",
   });
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   useEffect(() => {
     localStorage.setItem("workers", JSON.stringify(workers));
@@ -117,17 +125,17 @@ const Workers = () => {
           </thead>
 
           <tbody>
-            {workers.map((w) => (
+            {workers.map((w,i) => (
               <tr
-                key={w.id}
+                key={i}
                 className="border-t hover:bg-gray-50"
               >
                 <td className="px-4 py-3">{w.name}</td>
                 <td className="px-4 py-3">{w.role}</td>
                 <td className="px-4 py-3">{w.hours}</td>
-                <td className="px-4 py-3">${w.rate}</td>
+                <td className="px-4 py-3">{company?.currency} {w.rate}</td>
                 <td className="px-4 py-3 font-semibold">
-                  ${w.salary}
+                  {company?.currency} {w.salary}
                 </td>
               </tr>
             ))}

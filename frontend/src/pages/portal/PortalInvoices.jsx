@@ -1,10 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomerProjectIdSet } from "../../utils/customerScope";
-import { safeParse } from "../../utils/storageHelper";
+import { useProjects } from "../../context/ProjectsContext";
+import { useInvoices } from "../../context/InvoicesContext";
 
-const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+import { useCompany } from "../../context/CompanyContext";
+
 
 const calcTotal = (items = [], taxRate = 0) => {
   const subtotal = items.reduce(
@@ -19,9 +21,26 @@ export default function PortalInvoices() {
   const { user } = useAuth();
   const [sp] = useSearchParams();
   const projectId = sp.get("projectId");
+  
+  const { projects, getAll: fetchProjects } = useProjects();
+  const { invoices, getAllInvoices: fetchInvoices } = useInvoices();
+  const { company, getCompany } = useCompany();
+  const money = (n) => `${company?.currency} ${Number(n || 0).toFixed(2)}`;
 
-  const projects = useMemo(() => safeParse("projects"), []);
-  const invoices = useMemo(() => safeParse("invoices"), []);
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
+
+  useEffect(() => {
+    fetchProjects();
+    fetchInvoices();
+  }, [fetchProjects, fetchInvoices]);
+
+
+//   const projects = useMemo(() => safeParse("projects"), []);
+//   const invoices = useMemo(() => safeParse("invoices"), []);
 
   const myProjectIds = useMemo(
     () => getCustomerProjectIdSet(projects, user),
@@ -66,11 +85,11 @@ export default function PortalInvoices() {
           </thead>
 
           <tbody>
-            {filtered.map((inv) => {
+            {filtered.map((inv,i) => {
               const total = calcTotal(inv.items, inv.taxRate);
               return (
                 <tr
-                  key={inv.id}
+                  key={i}
                   className="border-t border-gray-100 dark:border-gray-800"
                 >
                   <td className="p-3 font-medium">{inv.invoiceNo}</td>
@@ -91,7 +110,7 @@ export default function PortalInvoices() {
                     <button
                       className="text-blue-600 hover:underline"
                       onClick={() =>
-                        nav(`/portal/finance/payments?invoiceId=${inv.id}`)
+                        nav(`/portal/finance/payments?invoiceId=${inv.invoiceId}`)
                       }
                     >
                       View Payments

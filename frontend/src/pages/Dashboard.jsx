@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCompany } from "../context/CompanyContext";
 import {
   BarChart,
   Bar,
@@ -28,12 +29,6 @@ import { useSuppliers } from "../context/SuppliersContext";
 import { useTasks } from "../context/TasksContext";
 import { useEmployees } from "../context/EmployeesContext";
 
-const money = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
 
 const monthKey = (d) => {
   const x = new Date(d);
@@ -115,6 +110,14 @@ const badgeClassByModule = (m) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const money = (n) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: `${company?.currency || "USD"}`,
+      maximumFractionDigits: 0,
+    }).format(Number(n || 0));
+  
   
   // Context hooks for real APIs - extract both data and fetch methods
   const { dashboardProjects: projects = [], getDashboardProjects: fetchProjects } = useProjects();
@@ -147,6 +150,12 @@ const Dashboard = () => {
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityQuery, setActivityQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   // Retry helper for intermittent failures
   const retryFetch = async (fetchFn, name, maxRetries = 2) => {

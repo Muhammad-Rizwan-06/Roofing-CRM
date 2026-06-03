@@ -1,4 +1,6 @@
 import React from "react";
+import { useCompany } from "../../context/CompanyContext";
+
 
 const LeadsTable = () => {
   const leads = [
@@ -23,7 +25,7 @@ const LeadsTable = () => {
 
           <tbody>
             {leads.map((lead) => (
-              <tr key={lead.id} className="border-b hover:bg-gray-50">
+              <tr key={lead.leadId} className="border-b hover:bg-gray-50">
                 <td className="py-3">{lead.name}</td>
                 <td>{lead.status}</td>
                 <td>{lead.amount}</td>

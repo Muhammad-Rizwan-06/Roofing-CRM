@@ -2,13 +2,20 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomerProjects } from "../../utils/customerScope";
 import ProjectsTable from "../../components/projects/ProjectsTable";
-import { safeParse } from "../../utils/storageHelper";
+import { useProjects } from "../../context/ProjectsContext";
+import { useEffect } from "react";
+
 
 export default function PortalProjects() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
 
-  const projects = useMemo(() => safeParse("projects"), []);
+  const {projects, getAll : fetchProjects} = useProjects();
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
   const myProjects = useMemo(
     () => getCustomerProjects(projects, user),
     [projects, user],

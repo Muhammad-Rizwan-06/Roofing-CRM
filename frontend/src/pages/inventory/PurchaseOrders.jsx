@@ -5,6 +5,7 @@ import { usePurchaseOrders } from "../../context/PurchaseOrdersContext";
 import { useSuppliers } from "../../context/SuppliersContext";
 import { useMaterials } from "../../context/MaterialsContext";
 import { useProjects } from "../../context/ProjectsContext";
+import { useCompany } from "../../context/CompanyContext";
 
 const calcTotal = (items = []) =>
   items.reduce((s, it) => s + Number(it.qty || 0) * Number(it.unitCost || 0), 0);
@@ -37,6 +38,13 @@ const PurchaseOrders = () => {
       { materialId: "", materialName: "", description: "", qty: 1, unitCost: 0 },
     ],
   });
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   // Load all data on mount
   useEffect(() => {
@@ -401,7 +409,7 @@ const PurchaseOrders = () => {
             <div className="px-4 py-3 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-200">
               <div className="flex justify-end">
                 <span className="font-semibold">
-                  Total: ${Number(total || 0).toFixed(2)}
+                  Total: {company?.currency} {Number(total || 0).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -447,7 +455,7 @@ const PurchaseOrders = () => {
                 <td className="px-4 py-3">{po.projectName || "—"}</td>
                 <td className="px-4 py-3">{po.issueDate}</td>
                 <td className="px-4 py-3">
-                  ${Number(po.total || 0).toFixed(2)}
+                  {company?.currency} {Number(po.total || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-3">
                   <span

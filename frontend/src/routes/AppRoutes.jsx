@@ -177,7 +177,7 @@ const AppRoutes = () => {
                 }
               />
               <Route
-                path="/customers/:name"
+                path="/customers/:userId"
                 element={
                   <AccessGuard allow="/customers">
                     <CustomerDetails />

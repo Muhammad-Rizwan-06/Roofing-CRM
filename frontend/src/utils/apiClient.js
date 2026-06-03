@@ -75,7 +75,6 @@ class ApiClient {
   async post(endpoint, data) {
     try {
       const response = await this.client.post(endpoint, data);
-      console.log(`POST ${endpoint} succeeded:`, response.data);
       return response.data;
     } catch (error) {
       console.error(`POST ${endpoint} failed:`, error);

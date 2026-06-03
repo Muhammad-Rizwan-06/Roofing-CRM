@@ -4,6 +4,7 @@ import { usePayments } from "../../context/PaymentsContext";
 import { useExpenses } from "../../context/ExpensesContext";
 import { useInvoices } from "../../context/InvoicesContext";
 import { useProjects } from "../../context/ProjectsContext";
+import { useCompany } from "../../context/CompanyContext";
 
 import {
   ResponsiveContainer,
@@ -18,12 +19,6 @@ import {
   Legend,
 } from "recharts";
 
-const money = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
 
 const monthKey = (d) => {
   const x = new Date(d);
@@ -62,6 +57,12 @@ const BusinessAnalytics = () => {
   const { expenses, fetchExpenses } = useExpenses();
   const { invoices, getAllInvoices } = useInvoices();
   const { projects, getAll: fetchProjects } = useProjects();
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   useEffect(() => {
     fetchPayments();
@@ -69,6 +70,14 @@ const BusinessAnalytics = () => {
     getAllInvoices();
     fetchProjects();
   }, []);
+
+  const money = (n) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: `${company?.currency || "USD"}`,
+      maximumFractionDigits: 0,
+    }).format(Number(n || 0));
+  
 
   const { kpis, monthlyData, expenseCategoryData, agingData, topProjects } =
     useMemo(() => {

@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { UserUser } from "../../context/UserContext";
+import { useUser } from "../../context/UserContext";
 import { useRole } from "../../context/RoleContext";
 import { generateSalt, hashPassword } from "../../utils/password";
 
 const UserManagement = () => {
-  const { employees: users, loading, error, create, update, delete: deleteUser, getAll } = UserUser();
+  const {
+    employees: users,
+    loading,
+    error,
+    create,
+    update,
+    delete: deleteUser,
+    getAll,
+  } = useUser();
   const { getRoles, roles } = useRole();
 
   const [editId, setEditId] = useState(null);
@@ -50,7 +58,9 @@ const UserManagement = () => {
     if (!form.email.trim()) return alert("Email required");
     if (!form.roleId) return alert("Role required");
 
-    const selectedRole = roles.find((r) => String(r.roleId) === String(form.roleId));
+    const selectedRole = roles.find(
+      (r) => String(r.roleId) === String(form.roleId),
+    );
     const roleName = selectedRole?.name || "";
 
     const payloadBase = {
@@ -64,7 +74,7 @@ const UserManagement = () => {
 
     // unique email check
     const emailTaken = users.some(
-      (u) => u.email === payloadBase.email && u.userId !== editId
+      (u) => u.email === payloadBase.email && u.userId !== editId,
     );
     if (emailTaken) return alert("Email already exists");
 
@@ -105,12 +115,21 @@ const UserManagement = () => {
 
   const onEdit = (u) => {
     setEditId(u.userId);
+    
+    // Find roleId from roles if not directly available on user
+    let roleId = u.roleId || "";
+    if (!roleId && u.roleName) {
+      const role = roles.find(r => r.name === u.roleName);
+      roleId = role ? String(role.roleId) : "";
+    }
+    
     setForm({
       name: u.name || "",
       email: u.email || "",
       phone: u.phone || "",
-      roleId: String(u.roleId || ""),
+      roleId: String(roleId),
       status: u.status || "Active",
+      roleName: u.roleName || "",
       password: "",
     });
   };
@@ -136,13 +155,19 @@ const UserManagement = () => {
             User Management
           </h1>
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {error}
+            </p>
           )}
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-300">Total Users</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? "..." : users.length}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-300">
+            Total Users
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {loading ? "..." : users.length}
+          </p>
         </div>
       </div>
 
@@ -195,7 +220,7 @@ const UserManagement = () => {
           >
             <option value="">Select role</option>
             {roles.map((r) => (
-              <option key={r.roleId} value={r.roleId}>
+              <option key={r.roleId} value={String(r.roleId)}>
                 {r.name}
               </option>
             ))}
@@ -214,23 +239,34 @@ const UserManagement = () => {
           <input
             type="password"
             className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-            placeholder={editId ? "New Password (optional)" : "Password (required)"}
+            placeholder={
+              editId ? "New Password (optional)" : "Password (required)"
+            }
             value={form.password}
-            onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, password: e.target.value }))
+            }
           />
 
-          <button 
+          <button
             className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition md:col-span-3 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            {loading ? (editId ? "Updating..." : "Adding...") : (editId ? "Update" : "Add")}
+            {loading
+              ? editId
+                ? "Updating..."
+                : "Adding..."
+              : editId
+                ? "Update"
+                : "Add"}
           </button>
         </div>
-
       </form>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Users</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          Users
+        </div>
 
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-100 dark:bg-gray-950 text-gray-700 dark:text-gray-200">
@@ -244,20 +280,31 @@ const UserManagement = () => {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.userId} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="p-3 font-medium text-gray-800 dark:text-white">{u.name}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{u.email}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{(u.roleName || "")}</td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{u.status}</td>
+              <tr
+                key={u.userId}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
+                <td className="p-3 font-medium text-gray-800 dark:text-white">
+                  {u.name}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {u.email}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {u.roleName || ""}
+                </td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {u.status}
+                </td>
                 <td className="p-3 text-right space-x-3">
-                  <button 
+                  <button
                     className="text-blue-600 hover:underline disabled:opacity-50"
                     onClick={() => onEdit(u)}
                     disabled={loading}
                   >
                     Edit
                   </button>
-                  <button 
+                  <button
                     className="text-red-600 hover:underline disabled:opacity-50"
                     onClick={() => onDelete(u.userId)}
                     disabled={loading}
@@ -270,7 +317,10 @@ const UserManagement = () => {
 
             {users.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={5}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No users yet.
                 </td>
               </tr>

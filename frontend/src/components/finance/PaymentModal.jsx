@@ -112,6 +112,7 @@ const PaymentModal = ({
       method: form.method,
       amount,
       note: form.note,
+      userId: inv.userId ?? null,
     });
 
     onClose();
@@ -150,7 +151,7 @@ const PaymentModal = ({
 
             {selectedInvoice && (
               <p className="text-[11px] text-gray-500 mt-1">
-                Outstanding: <span className="font-semibold">${outstanding.toFixed(2)}</span>
+                Outstanding: <span className="font-semibold">{company?.currency} {outstanding.toFixed(2)}</span>
               </p>
             )}
           </div>

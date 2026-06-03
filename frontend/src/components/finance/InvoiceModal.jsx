@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const emptyItem = { description: "", qty: 1, unitPrice: 0 };
+import { useCompany } from "../../context/CompanyContext";
+
 
 const calcSubtotal = (items) =>
   (items || []).reduce(
@@ -24,6 +26,13 @@ const InvoiceModal = ({
     taxRate: 0,
     items: [{ ...emptyItem }],
   });
+
+  const { company, getCompany } = useCompany();
+
+  useEffect(() => {
+    getCompany();
+  }, [getCompany]);
+
 
   // Prefill project when modal opened from Project context
   useEffect(() => {
@@ -234,9 +243,9 @@ const InvoiceModal = ({
 
             <div className="px-4 py-3 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-200">
               <div className="flex justify-end gap-8">
-                <span>Subtotal: ${subtotal.toFixed(2)}</span>
-                <span>Tax: ${tax.toFixed(2)}</span>
-                <span className="font-semibold">Total: ${total.toFixed(2)}</span>
+                <span>Subtotal: {company?.currency} {subtotal.toFixed(2)}</span>
+                <span>Tax: {company?.currency} {tax.toFixed(2)}</span>
+                <span className="font-semibold">Total: {company?.currency} {total.toFixed(2)}</span>
               </div>
             </div>
           </div>
