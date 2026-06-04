@@ -44,22 +44,24 @@ const Login = () => {
     const session = JSON.parse(localStorage.getItem("session_user")) || null;
     const roleName = session?.roleName;
 
+    console.log("from:", from);
+    console.log("roleName:", roleName);
 
-    // normal redirect logic
     let dest = canAccessPath(from, roleName)
       ? from
       : getDefaultRouteForRole(roleName);
 
-    // ✅ UX Fix:
-    // If user is NOT Customer, never land on /portal after login
+    console.log("dest before fixes:", dest);
+
     if (roleName !== ROLE.CUSTOMER && String(dest).startsWith("/portal")) {
       dest = "/";
     }
 
-    // If user IS Customer, keep them inside /portal
     if (roleName === ROLE.CUSTOMER && !String(dest).startsWith("/portal")) {
       dest = "/portal";
     }
+
+    console.log("final dest:", dest);
 
     navigate(dest, { replace: true });
   };
