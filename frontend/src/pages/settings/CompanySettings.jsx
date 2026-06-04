@@ -211,6 +211,7 @@ const CompanySettings = () => {
                 name="invoicePrefix"
                 value={form.invoicePrefix || "INV"}
                 onChange={onChange}
+                disabled={true}
                 className="mt-1 w-full border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
               />
             </div>
@@ -221,6 +222,7 @@ const CompanySettings = () => {
                 name="estimatePrefix"
                 value={form.estimatePrefix || "EST"}
                 onChange={onChange}
+                disabled={true}
                 className="mt-1 w-full border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
               />
             </div>
@@ -231,6 +233,7 @@ const CompanySettings = () => {
                 name="poPrefix"
                 value={form.poPrefix || "PO"}
                 onChange={onChange}
+                disabled={true}
                 className="mt-1 w-full border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
               />
             </div>
