@@ -165,7 +165,7 @@ const Subcontractors = () => {
             <label className="text-xs text-gray-500">Trade</label>
             <input
               className="w-full mt-1 border p-2 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-              placeholder="Roofing, Gutters, Painting..."
+              placeholder="Builtrly, Gutters, Painting..."
               value={form.trade}
               onChange={(e) =>
                 setForm((p) => ({ ...p, trade: e.target.value }))

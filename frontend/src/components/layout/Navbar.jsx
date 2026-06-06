@@ -23,7 +23,7 @@ const Navbar = () => {
     if (pathname.startsWith("/analytics")) return "Analytics";
     if (pathname.startsWith("/documents")) return "Documents";
     if (pathname.startsWith("/settings")) return "Settings";
-    return "Roofing Management System";
+    return "Builtrly Management System";
   }, [pathname]);
 
   const handleSubmit = (e) => {
@@ -51,7 +51,7 @@ const Navbar = () => {
       <div className="flex items-center justify-between gap-4 bg-white/90 dark:bg-gray-900/80 backdrop-blur px-6 py-4 border-b border-gray-200 dark:border-gray-800">
         {/* Left title */}
         <div className="min-w-55">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Roofing CRM</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Builtrly CRM</p>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 leading-tight">
             {pageTitle}
           </h1>

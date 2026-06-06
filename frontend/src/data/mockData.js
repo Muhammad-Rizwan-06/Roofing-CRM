@@ -27,8 +27,8 @@ export const leadsData = [
   },
   {
     id: 2,
-    name: "Ali Roofing",
-    email: "ali@roofing.com",
+    name: "Ali Builtrly",
+    email: "ali@builtrly.com",
     phone: "11111111",
     status: "Inspection Scheduled",
     estimatedValue: 80000,

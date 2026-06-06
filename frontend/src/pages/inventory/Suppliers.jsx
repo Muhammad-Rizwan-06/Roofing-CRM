@@ -160,7 +160,7 @@ const Suppliers = () => {
                   setForm((p) => ({ ...p, name: e.target.value }))
                 }
                 className="w-full mt-1 border rounded-xl px-3 py-2 bg-white dark:bg-gray-950 dark:text-white"
-                placeholder="e.g. ABC Roofing Supplies"
+                placeholder="e.g. ABC Builtrly Supplies"
                 disabled={isSaving}
               />
             </div>

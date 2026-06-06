@@ -82,7 +82,7 @@ const Sidebar = () => {
           </NavLink>
         </nav>
 
-        <div className="text-xs text-gray-400 mt-6">© 2026 Roofing ERP</div>
+        <div className="text-xs text-gray-400 mt-6">© 2026 Builtrly ERP</div>
       </div>
     );
   }
@@ -171,7 +171,7 @@ const Sidebar = () => {
 
   return (
     <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col">
-      <h2 className="text-2xl font-bold text-blue-600 mb-8">Roofing CRM</h2>
+      <h2 className="text-2xl font-bold text-blue-600 mb-8">Builtrly CRM</h2>
 
       <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
         {showDashboard && (
@@ -556,7 +556,7 @@ const Sidebar = () => {
         )}
       </nav>
 
-      <div className="text-xs text-gray-400 mt-6">© 2026 Roofing ERP</div>
+      <div className="text-xs text-gray-400 mt-6">© 2026 Builtrly ERP</div>
     </div>
   );
 };
