@@ -204,13 +204,13 @@ export default function MaintenanceVisits() {
         >
           Reset
         </button>
-
+{/* 
         <button
           className="ml-auto px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           onClick={handleRefresh} // ✅ fixed — was using addInspection which doesn't exist here
         >
           Refresh
-        </button>
+        </button> */}
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">

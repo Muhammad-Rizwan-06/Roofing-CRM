@@ -195,16 +195,16 @@ const Tasks = () => {
 
       {/* Form (Admin/PM only) */}
       {canManageTasks && (
-        <div className="bg-white p-5 dark:bg-gray-900 rounded-2xl shadow space-y-4">
+        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow border border-gray-200 dark:border-gray-700 space-y-4">
           <input
             placeholder="Task Title"
-            className="border p-3 w-full rounded"
+            className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
 
           <select
-            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
+            className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             value={form.projectId}
             onChange={(e) => setForm({ ...form, projectId: e.target.value })}
           >
@@ -217,7 +217,7 @@ const Tasks = () => {
           </select>
 
           <select
-            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
+            className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             value={form.employeeId}
             onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
           >
@@ -232,7 +232,7 @@ const Tasks = () => {
           {!form.employeeId && (
             <input
               placeholder="Assigned Worker (manual)"
-              className="border p-3 w-full rounded"
+              className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               value={form.worker}
               onChange={(e) => setForm({ ...form, worker: e.target.value })}
             />
@@ -241,20 +241,21 @@ const Tasks = () => {
           <div className="flex gap-3">
             <input
               type="date"
-              className="border p-3 w-full rounded"
+              className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
             />
+
             <input
               type="date"
-              className="border p-3 w-full rounded"
+              className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
             />
           </div>
 
           <select
-            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
+            className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             value={form.priority}
             onChange={(e) => setForm({ ...form, priority: e.target.value })}
           >
@@ -264,7 +265,7 @@ const Tasks = () => {
           </select>
 
           <select
-            className="border p-3 w-full rounded dark:bg-gray-900 text-white"
+            className="w-full rounded border border-gray-300 bg-white text-gray-900 p-3 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value })}
           >
@@ -275,7 +276,7 @@ const Tasks = () => {
 
           <button
             onClick={handleAdd}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-700"
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 dark:hover:bg-blue-500"
           >
             Add Task
           </button>

@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { ThemeContext } from "../../context/ThemeContext";
 import { canAccessPath } from "../../config/accessControl";
 
 const Navbar = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { darkMode, setDarkMode } = useContext(ThemeContext);
 
   const [query, setQuery] = useState("");
 
@@ -51,17 +53,28 @@ const Navbar = () => {
       <div className="flex items-center justify-between gap-4 bg-white/90 dark:bg-gray-900/80 backdrop-blur px-6 py-4 border-b border-gray-200 dark:border-gray-800">
         {/* Left title */}
         <div className="min-w-55">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Builtrly CRM</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Builtrly CRM
+          </p>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 leading-tight">
             {pageTitle}
           </h1>
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSubmit} className="hidden md:block flex-1 max-w-2xl">
+        <form
+          onSubmit={handleSubmit}
+          className="hidden md:block flex-1 max-w-2xl"
+        >
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="opacity-90">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="opacity-90"
+              >
                 <path
                   d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z"
                   stroke="currentColor"
@@ -82,7 +95,15 @@ const Navbar = () => {
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition" title="Notifications">
+          <button
+            className="
+  p-2 rounded-xl
+  text-gray-600 hover:text-gray-900 hover:bg-gray-100
+  dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800
+  transition
+"
+            title="Notifications"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path
                 d="M15 17H9m10-2V11a7 7 0 10-14 0v4l-2 2h18l-2-2z"
@@ -95,7 +116,12 @@ const Navbar = () => {
 
           <button
             onClick={goSettings}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            className="
+  p-2 rounded-xl
+  text-gray-600 hover:text-gray-900 hover:bg-gray-100
+  dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800
+  transition
+"
             title="Settings"
             type="button"
           >
@@ -112,6 +138,47 @@ const Navbar = () => {
                 strokeLinejoin="round"
               />
             </svg>
+          </button>
+
+          {/* Theme toggle */}
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="
+  p-2 rounded-xl
+  text-gray-600 hover:text-gray-900 hover:bg-gray-100
+  dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800
+  transition
+"
+            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            type="button"
+          >
+            {darkMode ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </button>
 
           {/* User */}

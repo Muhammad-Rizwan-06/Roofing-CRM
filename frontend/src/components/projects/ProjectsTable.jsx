@@ -45,7 +45,7 @@ const ProjectsTable = ({
             return (
               <tr
                 key={project.projectId}
-                className="border-t hover:bg-gray-800 transition"
+                className="border-t hover:bg-gray-300 dark:hover:bg-gray-800 transition"
               >
                 <td className="p-3">{project.name}</td>
                 <td className="p-3">{project.client}</td>
@@ -75,7 +75,9 @@ const ProjectsTable = ({
                   </div>
                 </td>
 
-                <td className="p-3">{company?.currency} {project.budget}</td>
+                <td className="p-3">
+                  {company?.currency} {project.budget}
+                </td>
                 <td className="p-3">{project.supervisor || "-"}</td>
                 <td className="p-3">{project.team || "-"}</td>
 

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { ThemeContext } from "../../context/ThemeContext";
 import { canAccessPrefix, ROLE } from "../../config/accessControl";
 
 const linkClass = (isActive) =>
@@ -20,6 +21,7 @@ const subLinkClass = (isActive) =>
 const Sidebar = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const { darkMode } = useContext(ThemeContext);
   const roleName = user?.roleName;
 
   // ✅ Customer Portal sidebar
@@ -170,10 +172,14 @@ const Sidebar = () => {
   const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute);
 
   return (
-    <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 flex flex-col">
-      <h2 className="text-2xl font-bold text-blue-600 mb-8">Builtrly CRM</h2>
-
-      <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
+    <div className="h-screen w-64 bg-white dark:bg-gray-900 shadow-xl p-6 pt-0 flex flex-col">
+      {/* <h2 className="text-2xl font-bold text-blue-600 mb-8">Builtrly CRM</h2> */}
+      <div className="mb-2 mt-0">
+        <a href="http://app.builtrly.com" rel="noopener noreferrer">
+          <img src={darkMode ? "/Builtrly-reversed-sidebar.png" : "/Builtrly-primary-light.png"} alt="Builtrly CRM" />
+        </a>
+      </div>
+      <nav className="flex-1 overflow-y-auto pr-1">
         {showDashboard && (
           <NavLink to="/" className={({ isActive }) => linkClass(isActive)}>
             Dashboard
@@ -199,17 +205,26 @@ const Sidebar = () => {
             {crmOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/leads", roleName) && (
-                  <NavLink to="/leads" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/leads"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Leads
                   </NavLink>
                 )}
                 {canAccessPrefix("/opportunities", roleName) && (
-                  <NavLink to="/opportunities" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/opportunities"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Opportunities
                   </NavLink>
                 )}
                 {canAccessPrefix("/customers", roleName) && (
-                  <NavLink to="/customers" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/customers"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Customers
                   </NavLink>
                 )}
@@ -237,22 +252,34 @@ const Sidebar = () => {
             {projectsOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/projects/active-jobs", roleName) && (
-                  <NavLink to="/projects/active-jobs" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/projects/active-jobs"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Active Jobs
                   </NavLink>
                 )}
                 {canAccessPrefix("/projects/schedule", roleName) && (
-                  <NavLink to="/projects/schedule" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/projects/schedule"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Project Schedule
                   </NavLink>
                 )}
                 {canAccessPrefix("/projects/inspections", roleName) && (
-                  <NavLink to="/projects/inspections" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/projects/inspections"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Inspections
                   </NavLink>
                 )}
                 {canAccessPrefix("/projects/work-orders", roleName) && (
-                  <NavLink to="/projects/work-orders" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/projects/work-orders"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Work Orders
                   </NavLink>
                 )}
@@ -280,12 +307,18 @@ const Sidebar = () => {
             {maintenanceOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/maintenance/contracts", roleName) && (
-                  <NavLink to="/maintenance/contracts" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/maintenance/contracts"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Contracts
                   </NavLink>
                 )}
                 {canAccessPrefix("/maintenance/visits", roleName) && (
-                  <NavLink to="/maintenance/visits" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/maintenance/visits"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Visits
                   </NavLink>
                 )}
@@ -313,22 +346,34 @@ const Sidebar = () => {
             {operationsOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/operations/tasks", roleName) && (
-                  <NavLink to="/operations/tasks" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/operations/tasks"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Tasks
                   </NavLink>
                 )}
                 {canAccessPrefix("/operations/calendar", roleName) && (
-                  <NavLink to="/operations/calendar" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/operations/calendar"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Calendar
                   </NavLink>
                 )}
                 {canAccessPrefix("/operations/teams", roleName) && (
-                  <NavLink to="/operations/teams" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/operations/teams"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Teams / Employees
                   </NavLink>
                 )}
                 {canAccessPrefix("/operations/subcontractors", roleName) && (
-                  <NavLink to="/operations/subcontractors" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/operations/subcontractors"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Subcontractors
                   </NavLink>
                 )}
@@ -356,22 +401,34 @@ const Sidebar = () => {
             {financeOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/finance/estimates", roleName) && (
-                  <NavLink to="/finance/estimates" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/finance/estimates"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Estimates
                   </NavLink>
                 )}
                 {canAccessPrefix("/finance/invoices", roleName) && (
-                  <NavLink to="/finance/invoices" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/finance/invoices"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Invoices
                   </NavLink>
                 )}
                 {canAccessPrefix("/finance/payments", roleName) && (
-                  <NavLink to="/finance/payments" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/finance/payments"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Payments
                   </NavLink>
                 )}
                 {canAccessPrefix("/finance/expenses", roleName) && (
-                  <NavLink to="/finance/expenses" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/finance/expenses"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Expenses
                   </NavLink>
                 )}
@@ -399,17 +456,26 @@ const Sidebar = () => {
             {inventoryOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/inventory/materials", roleName) && (
-                  <NavLink to="/inventory/materials" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/inventory/materials"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Materials
                   </NavLink>
                 )}
                 {canAccessPrefix("/inventory/suppliers", roleName) && (
-                  <NavLink to="/inventory/suppliers" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/inventory/suppliers"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Suppliers
                   </NavLink>
                 )}
                 {canAccessPrefix("/inventory/purchase-orders", roleName) && (
-                  <NavLink to="/inventory/purchase-orders" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/inventory/purchase-orders"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Purchase Orders
                   </NavLink>
                 )}
@@ -436,13 +502,22 @@ const Sidebar = () => {
 
             {reportsOpen && (
               <div className="ml-3 space-y-2">
-                <NavLink to="/reports/revenue" className={({ isActive }) => subLinkClass(isActive)}>
+                <NavLink
+                  to="/reports/revenue"
+                  className={({ isActive }) => subLinkClass(isActive)}
+                >
                   Revenue Reports
                 </NavLink>
-                <NavLink to="/reports/sales" className={({ isActive }) => subLinkClass(isActive)}>
+                <NavLink
+                  to="/reports/sales"
+                  className={({ isActive }) => subLinkClass(isActive)}
+                >
                   Sales Reports
                 </NavLink>
-                <NavLink to="/reports/job-performance" className={({ isActive }) => subLinkClass(isActive)}>
+                <NavLink
+                  to="/reports/job-performance"
+                  className={({ isActive }) => subLinkClass(isActive)}
+                >
                   Job Performance
                 </NavLink>
               </div>
@@ -468,10 +543,16 @@ const Sidebar = () => {
 
             {analyticsOpen && (
               <div className="ml-3 space-y-2">
-                <NavLink to="/analytics/business" className={({ isActive }) => subLinkClass(isActive)}>
+                <NavLink
+                  to="/analytics/business"
+                  className={({ isActive }) => subLinkClass(isActive)}
+                >
                   Business Analytics
                 </NavLink>
-                <NavLink to="/analytics/pipeline" className={({ isActive }) => subLinkClass(isActive)}>
+                <NavLink
+                  to="/analytics/pipeline"
+                  className={({ isActive }) => subLinkClass(isActive)}
+                >
                   Pipeline Analytics
                 </NavLink>
               </div>
@@ -498,17 +579,26 @@ const Sidebar = () => {
             {documentsOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/documents/contracts", roleName) && (
-                  <NavLink to="/documents/contracts" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/documents/contracts"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Contracts
                   </NavLink>
                 )}
                 {canAccessPrefix("/documents/photos", roleName) && (
-                  <NavLink to="/documents/photos" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/documents/photos"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Photos
                   </NavLink>
                 )}
                 {canAccessPrefix("/documents/attachments", roleName) && (
-                  <NavLink to="/documents/attachments" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/documents/attachments"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Attachments
                   </NavLink>
                 )}
@@ -536,17 +626,26 @@ const Sidebar = () => {
             {settingsOpen && (
               <div className="ml-3 space-y-2">
                 {canAccessPrefix("/settings/company", roleName) && (
-                  <NavLink to="/settings/company" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/settings/company"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Company Settings
                   </NavLink>
                 )}
                 {canAccessPrefix("/settings/users", roleName) && (
-                  <NavLink to="/settings/users" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/settings/users"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     User Management
                   </NavLink>
                 )}
                 {canAccessPrefix("/settings/roles", roleName) && (
-                  <NavLink to="/settings/roles" className={({ isActive }) => subLinkClass(isActive)}>
+                  <NavLink
+                    to="/settings/roles"
+                    className={({ isActive }) => subLinkClass(isActive)}
+                  >
                     Roles & Permissions
                   </NavLink>
                 )}
