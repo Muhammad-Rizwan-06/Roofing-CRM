@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import LeadsTable from "../components/leads/LeadsTable";
 import AddLeadModal from "../components/leads/AddLeadModal";
 import { useLeads } from "../context/LeadContext";
@@ -48,6 +49,26 @@ const Leads = () => {
   const { create: createUser } = useUser();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return leads || [];
+    const q = searchQuery.toLowerCase();
+    return (leads || []).filter((lead) => {
+      const name = (lead.name || "").toLowerCase();
+      const email = (lead.email || "").toLowerCase();
+      const phone = (lead.phone || "").toLowerCase();
+      const status = (lead.status || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [leads, searchQuery]);
 
   // Fetch leads and estimates on mount
   useEffect(() => {
@@ -249,7 +270,7 @@ const Leads = () => {
         </div>
       )}
 
-      <LeadsTable leads={leads} onDelete={deleteLead} onConvert={convertLead} />
+      <LeadsTable leads={filteredLeads} onDelete={deleteLead} onConvert={convertLead} />
 
       {open && <AddLeadModal setOpen={setOpen} onAdd={addLead} />}
     </div>

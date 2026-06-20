@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useRole } from "../../context/RoleContext";
 
 const RolesPermissions = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const { roles, loading, error, getRoles, createRole, deleteRole } = useRole();
   const [form, setForm] = useState({
     name: "",
@@ -14,7 +18,20 @@ const RolesPermissions = () => {
   }, []);
 
 
-  const total = useMemo(() => roles.length, [roles]);
+  const filteredRoles = useMemo(() => {
+    if (!searchQuery.trim()) return roles || [];
+    const q = searchQuery.toLowerCase();
+    return (roles || []).filter((r) => {
+      const name = (r.name || "").toLowerCase();
+      const description = (r.description || "").toLowerCase();
+      const permissions = (r.permissions || []).join(", ").toLowerCase();
+      return (
+        name.includes(q) ||
+        description.includes(q) ||
+        permissions.includes(q)
+      );
+    });
+  }, [roles, searchQuery]);
 
   const addRole = async (e) => {
     e.preventDefault();
@@ -73,7 +90,7 @@ const RolesPermissions = () => {
             Total Roles
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {loading ? "..." : total}
+            {loading ? "..." : filteredRoles.length}
           </p>
         </div>
       </div>
@@ -139,7 +156,7 @@ const RolesPermissions = () => {
             </tr>
           </thead>
           <tbody>
-            {roles.map((r, i) => (
+            {filteredRoles.map((r, i) => (
               <tr
                 key={i}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -165,7 +182,7 @@ const RolesPermissions = () => {
               </tr>
             ))}
 
-            {roles.length === 0 && (
+            {filteredRoles.length === 0 && !loading && (
               <tr>
                 <td
                   colSpan={4}

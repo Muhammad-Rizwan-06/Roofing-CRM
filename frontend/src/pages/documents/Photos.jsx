@@ -16,6 +16,7 @@ const Photos = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get("projectId") || "";
+  const searchQuery = searchParams.get("search") || "";
   const newUpload = searchParams.get("new") === "1";
 
   const [open,       setOpen]       = useState(false);
@@ -42,9 +43,23 @@ const Photos = () => {
     if (newUpload && canUpload) setOpen(true);
   }, [newUpload, canUpload]);
 
-  const filtered = useMemo(() =>
-    documents.filter((d) => d.type === "photo"),
-  [documents]);
+  const filtered = useMemo(() => {
+    let list = documents.filter((d) => d.type === "photo");
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter((d) => {
+      const fileName = (d.fileName || "").toLowerCase();
+      const projectName = (d.projectName || "").toLowerCase();
+      const notes = (d.notes || "").toLowerCase();
+      return (
+        fileName.includes(q) ||
+        projectName.includes(q) ||
+        notes.includes(q)
+      );
+    });
+  }, [documents, searchQuery]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
   const handleUpload = async (uploadedDoc) => {

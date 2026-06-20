@@ -16,6 +16,7 @@ const Attachments = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get("projectId") || "";
+  const searchQuery = searchParams.get("search") || "";
   const newUpload = searchParams.get("new") === "1";
 
   const [open, setOpen] = useState(false);
@@ -41,9 +42,23 @@ const Attachments = () => {
     if (newUpload && canUpload) setOpen(true);
   }, [newUpload, canUpload]);
 
-  const filtered = useMemo(() =>
-    documents.filter((d) => d.type === "attachment"),
-  [documents]);
+  const filtered = useMemo(() => {
+    let list = documents.filter((d) => d.type === "attachment");
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter((d) => {
+      const fileName = (d.fileName || "").toLowerCase();
+      const projectName = (d.projectName || "").toLowerCase();
+      const notes = (d.notes || "").toLowerCase();
+      return (
+        fileName.includes(q) ||
+        projectName.includes(q) ||
+        notes.includes(q)
+      );
+    });
+  }, [documents, searchQuery]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
   const handleUpload = async (uploadedDoc) => {
@@ -136,7 +151,7 @@ const Attachments = () => {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-300">
                   No attachments uploaded.

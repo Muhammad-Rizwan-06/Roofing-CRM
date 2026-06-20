@@ -11,6 +11,7 @@ const Expenses = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillProjectId = searchParams.get("projectId") || "";
+  const searchQuery = searchParams.get("search") || "";
 
   const [open, setOpen] = useState(false);
 
@@ -52,11 +53,30 @@ const Expenses = () => {
 
   // ── Derived data ───────────────────────────────────────────────────────────
   const filteredExpenses = useMemo(() => {
-    if (!prefillProjectId) return expenses;
-    return expenses.filter(
-      (e) => String(e.projectId) === String(prefillProjectId),
-    );
-  }, [expenses, prefillProjectId]);
+    let list = expenses || [];
+
+    if (prefillProjectId) {
+      list = list.filter(
+        (e) => String(e.projectId) === String(prefillProjectId),
+      );
+    }
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter((e) => {
+      const expenseNo = (e.expenseNo || "").toLowerCase();
+      const projectName = (e.projectName || "").toLowerCase();
+      const category = (e.category || "").toLowerCase();
+      const vendor = (e.vendor || "").toLowerCase();
+      return (
+        expenseNo.includes(q) ||
+        projectName.includes(q) ||
+        category.includes(q) ||
+        vendor.includes(q)
+      );
+    });
+  }, [expenses, prefillProjectId, searchQuery]);
 
   const metrics = useMemo(
     () => ({
@@ -238,7 +258,7 @@ const Expenses = () => {
               </tr>
             ))}
 
-            {filteredExpenses.length === 0 && (
+            {filteredExpenses.length === 0 && !expensesLoading && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"

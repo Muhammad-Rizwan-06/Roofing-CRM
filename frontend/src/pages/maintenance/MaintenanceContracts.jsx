@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useContracts } from "../../context/ContractContext";
 import { useProjects } from "../../context/ProjectsContext";
 import { useUser } from "../../context/UserContext";
@@ -61,6 +62,28 @@ export default function MaintenanceContracts() {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const { company, getCompany } = useCompany();
 
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredContracts = useMemo(() => {
+    if (!searchQuery.trim()) return contracts || [];
+    const q = searchQuery.toLowerCase();
+    return (contracts || []).filter((c) => {
+      const contractNo = (c.contractNo || "").toLowerCase();
+      const customerName = (c.customerName || "").toLowerCase();
+      const customerEmail = (c.customerEmail || "").toLowerCase();
+      const planName = (c.planName || "").toLowerCase();
+      const status = (c.status || "").toLowerCase();
+      return (
+        contractNo.includes(q) ||
+        customerName.includes(q) ||
+        customerEmail.includes(q) ||
+        planName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [contracts, searchQuery]);
+
   useEffect(() => {
     getCompany();
   }, [getCompany]);
@@ -72,11 +95,11 @@ export default function MaintenanceContracts() {
       setPageLoading(false);
     };
     init();
-  }, [getAllContracts, getAll, getCustomers]);
+  }, []);
 
   const totalActive = useMemo(
-    () => contracts.filter((c) => c.status === "Active").length,
-    [contracts],
+    () => filteredContracts.filter((c) => c.status === "Active").length,
+    [filteredContracts],
   );
 
   const reset = () => {
@@ -297,7 +320,7 @@ export default function MaintenanceContracts() {
           </thead>
 
           <tbody>
-            {contracts.map((c) => (
+            {filteredContracts.map((c) => (
               <tr
                 key={c.contractId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -341,7 +364,7 @@ export default function MaintenanceContracts() {
               </tr>
             ))}
 
-            {contracts.length === 0 && (
+            {filteredContracts.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
@@ -386,181 +409,247 @@ export default function MaintenanceContracts() {
               className="p-4 space-y-4 overflow-y-auto max-h-[75vh]"
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="Plan Name (e.g. Annual Roof Inspection)"
-                  value={form.planName}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, planName: e.target.value }))
-                  }
-                />
+                <div>
+                  <label className="text-xs text-gray-500">Plan Name</label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="e.g. Annual Roof Inspection"
+                    value={form.planName}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, planName: e.target.value }))
+                    }
+                  />
+                </div>
 
-                <select
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.frequencyMonths}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      frequencyMonths: Number(e.target.value),
-                    }))
-                  }
-                >
-                  <option value={12}>Every 12 months (Annual)</option>
-                  <option value={6}>Every 6 months (Semi-Annual)</option>
-                  <option value={3}>Every 3 months (Quarterly)</option>
-                </select>
-
-                <select
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, status: e.target.value }))
-                  }
-                >
-                  <option value="Active">Active</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Cancelled">Cancelled</option>
-                  <option value="Expired">Expired</option>
-                </select>
-
-                <input
-                  type="date"
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.startDate}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, startDate: e.target.value }))
-                  }
-                />
-
-                <input
-                  type="date"
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.endDate}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, endDate: e.target.value }))
-                  }
-                />
-
-                <input
-                  type="date"
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.nextRunDate}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, nextRunDate: e.target.value }))
-                  }
-                  title="Next scheduled visit date"
-                />
-
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="Customer Name"
-                  value={form.customerName}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, customerName: e.target.value }))
-                  }
-                  readOnly={!!(form.projectId || selectedCustomer)}
-                />
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="Customer Email"
-                  value={form.customerEmail}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, customerEmail: e.target.value }))
-                  }
-                  readOnly={!!(form.projectId || selectedCustomer)}
-                />
-
-                <select
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  value={form.projectId}
-                  onChange={(e) => handleProjectChange(e.target.value)}
-                >
-                  <option value="">(Optional) Link a Project</option>
-                  {projects.map((p) => (
-                    <option key={p.projectId} value={p.projectId}>
-                      {p.name?.trim()}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Customer Selector (when no project selected) */}
-                {!form.projectId && (
+                <div>
+                  <label className="text-xs text-gray-500">Frequency</label>
                   <select
-                    className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                    value={selectedCustomer}
-                    onChange={(e) => handleCustomerSelect(e.target.value)}
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.frequencyMonths}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        frequencyMonths: Number(e.target.value),
+                      }))
+                    }
                   >
-                    <option value="">-- Select Customer --</option>
-                    {customers.map((c) => (
-                      <option key={c.userId} value={c.userId}>
-                        {c.name} ({c.email})
+                    <option value={12}>Every 12 months (Annual)</option>
+                    <option value={6}>Every 6 months (Semi-Annual)</option>
+                    <option value={3}>Every 3 months (Quarterly)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">Status</label>
+                  <select
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, status: e.target.value }))
+                    }
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Paused">Paused</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Expired">Expired</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">Start Date *</label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, startDate: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">
+                    End Date (optional)
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.endDate}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, endDate: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">Next Visit Date</label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.nextRunDate}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, nextRunDate: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">Customer Name *</label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="Customer name"
+                    value={form.customerName}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, customerName: e.target.value }))
+                    }
+                    readOnly={!!(form.projectId || selectedCustomer)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">Customer Email *</label>
+                  <input
+                    type="email"
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="customer@email.com"
+                    value={form.customerEmail}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, customerEmail: e.target.value }))
+                    }
+                    readOnly={!!(form.projectId || selectedCustomer)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">
+                    Project (optional)
+                  </label>
+                  <select
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    value={form.projectId}
+                    onChange={(e) => handleProjectChange(e.target.value)}
+                  >
+                    <option value="">No project linked</option>
+                    {projects.map((p) => (
+                      <option key={p.projectId} value={p.projectId}>
+                        {p.name?.trim()}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {!form.projectId && (
+                  <div>
+                    <label className="text-xs text-gray-500">Customer</label>
+                    <select
+                      className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                      value={selectedCustomer}
+                      onChange={(e) => handleCustomerSelect(e.target.value)}
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((c) => (
+                        <option key={c.userId} value={c.userId}>
+                          {c.name} ({c.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
 
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white md:col-span-3"
-                  placeholder="Property Address Line 1"
-                  value={form.propertyLine1}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, propertyLine1: e.target.value }))
-                  }
-                />
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white md:col-span-3"
-                  placeholder="Property Address Line 2 (optional)"
-                  value={form.propertyLine2}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, propertyLine2: e.target.value }))
-                  }
-                />
-
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="City"
-                  value={form.city}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, city: e.target.value }))
-                  }
-                />
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="State"
-                  value={form.state}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, state: e.target.value }))
-                  }
-                />
-                <input
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="ZIP"
-                  value={form.zip}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, zip: e.target.value }))
-                  }
-                />
-
-                <input
-                  type="number"
-                  className="border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
-                  placeholder="Price per Visit (optional)"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, price: e.target.value }))
-                  }
-                />
-
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <div className="md:col-span-3">
+                  <label className="text-xs text-gray-500">
+                    Property Address Line 1 *
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={form.autoInvoice}
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="Street address"
+                    value={form.propertyLine1}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, autoInvoice: e.target.checked }))
+                      setForm((p) => ({ ...p, propertyLine1: e.target.value }))
                     }
                   />
-                  Auto-create invoice for each visit
-                </label>
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="text-xs text-gray-500">
+                    Property Address Line 2 (optional)
+                  </label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="Apt, suite, unit, etc."
+                    value={form.propertyLine2}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, propertyLine2: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">City</label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="City"
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, city: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">State</label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="State"
+                    value={form.state}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, state: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">ZIP</label>
+                  <input
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="ZIP code"
+                    value={form.zip}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, zip: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500">
+                    Price per Visit (optional)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full mt-1 border p-3 rounded-xl bg-white dark:bg-gray-950 dark:text-white"
+                    placeholder="0.00"
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, price: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={form.autoInvoice}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          autoInvoice: e.target.checked,
+                        }))
+                      }
+                    />
+                    Auto-create invoice for each visit
+                  </label>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">

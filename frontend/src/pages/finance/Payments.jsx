@@ -10,6 +10,7 @@ import { useCompany } from "../../context/CompanyContext";
 const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillInvoiceId = searchParams.get("invoiceId") || "";
+  const searchQuery = searchParams.get("search") || "";
 
   const [open, setOpen] = useState(false);
 
@@ -50,13 +51,30 @@ const Payments = () => {
     if (prefillInvoiceId) setOpen(true);
   }, [prefillInvoiceId]);
 
+  const filteredPayments = useMemo(() => {
+    if (!searchQuery.trim()) return payments || [];
+    const q = searchQuery.toLowerCase();
+    return (payments || []).filter((p) => {
+      const paymentNo = (p.paymentNo || "").toLowerCase();
+      const invoiceNo = (p.invoiceNo || "").toLowerCase();
+      const customer = (p.customer || "").toLowerCase();
+      const method = (p.method || "").toLowerCase();
+      return (
+        paymentNo.includes(q) ||
+        invoiceNo.includes(q) ||
+        customer.includes(q) ||
+        method.includes(q)
+      );
+    });
+  }, [payments, searchQuery]);
+
   // ── Metrics ────────────────────────────────────────────────────────────────
   const metrics = useMemo(
     () => ({
-      totalPayments: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
-      count: payments.length,
+      totalPayments: filteredPayments.reduce((s, p) => s + Number(p.amount || 0), 0),
+      count: filteredPayments.length,
     }),
-    [payments],
+    [filteredPayments],
   );
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -147,7 +165,7 @@ const Payments = () => {
           </thead>
 
           <tbody>
-            {payments.map((p) => (
+            {filteredPayments.map((p) => (
               <tr
                 key={p.paymentId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -181,7 +199,7 @@ const Payments = () => {
               </tr>
             ))}
 
-            {payments.length === 0 && (
+            {filteredPayments.length === 0 && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"

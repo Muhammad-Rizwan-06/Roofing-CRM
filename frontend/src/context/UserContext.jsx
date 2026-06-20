@@ -32,7 +32,7 @@ export const UserProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [employees]);
+  }, []);
 
   // Get all employees
   const getCustomers = useCallback(async () => {
@@ -49,7 +49,7 @@ export const UserProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [customers]);
+  }, []);
 
   // Create a new employee
   const create = useCallback(async (employeeData) => {

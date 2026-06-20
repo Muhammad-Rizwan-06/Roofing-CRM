@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useProjects } from "../../context/ProjectsContext";
 
 const WorkOrders = () => {
@@ -19,6 +19,28 @@ const WorkOrders = () => {
   const [submitting, setSubmitting] = useState(false);
   const [selectedProjectWorkers, setSelectedProjectWorkers] = useState([]);
   const [workersLoading, setWorkersLoading] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredWorkOrders = useMemo(() => {
+    if (!searchQuery.trim()) return workOrders || [];
+    const q = searchQuery.toLowerCase();
+    return (workOrders || []).filter((w) => {
+      const projectName = (w.projectName || "").toLowerCase();
+      const title = (w.title || "").toLowerCase();
+      const assigned = (w.assignedWorkerName || "").toLowerCase();
+      const priority = (w.priority || "").toLowerCase();
+      const status = (w.status || "").toLowerCase();
+      return (
+        projectName.includes(q) ||
+        title.includes(q) ||
+        assigned.includes(q) ||
+        priority.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [workOrders, searchQuery]);
 
   const [form, setForm] = useState({
     projectId: "",
@@ -45,10 +67,10 @@ const WorkOrders = () => {
 
   const openCount = useMemo(
     () =>
-      workOrders.filter(
+      filteredWorkOrders.filter(
         (w) => w.status === "Open" || w.status === "In Progress",
       ).length,
-    [workOrders],
+    [filteredWorkOrders],
   );
 
   const handleProjectChange = async (projectId) => {
@@ -275,7 +297,7 @@ const WorkOrders = () => {
             </tr>
           </thead>
           <tbody>
-            {workOrders.map((w) => (
+            {filteredWorkOrders.map((w) => (
               <tr
                 key={w.workOrderId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -325,7 +347,7 @@ const WorkOrders = () => {
               </tr>
             ))}
 
-            {workOrders.length === 0 && (
+            {filteredWorkOrders.length === 0 && (
               <tr>
                 <td
                   colSpan={7}

@@ -21,6 +21,7 @@ const Contracts = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get("projectId") || "";
+  const searchQuery = searchParams.get("search") || "";
   const newUpload = searchParams.get("new") === "1";
 
   const [openUpload, setOpenUpload] = useState(false);
@@ -68,8 +69,23 @@ const Contracts = () => {
     if (roleName === ROLE.CUSTOMER && myProjectIds) {
       list = list.filter((d) => myProjectIds.has(String(d.projectId)));
     }
-    return list;
-  }, [documents, roleName, myProjectIds]);
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter((d) => {
+      const fileName = (d.fileName || "").toLowerCase();
+      const projectName = (d.projectName || "").toLowerCase();
+      const notes = (d.notes || "").toLowerCase();
+      const status = d.signed ? "signed" : "unsigned";
+      return (
+        fileName.includes(q) ||
+        projectName.includes(q) ||
+        notes.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [documents, roleName, myProjectIds, searchQuery]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
   const handleUpload = async (uploadedDoc) => {
@@ -239,7 +255,7 @@ const Contracts = () => {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="p-6 text-center text-gray-500 dark:text-gray-300">
                   No contracts uploaded.

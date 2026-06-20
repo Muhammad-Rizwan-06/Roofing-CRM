@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useContracts } from "../../context/ContractContext";
 import { useProjects } from "../../context/ProjectsContext";
 import { runMaintenanceScheduler } from "../../utils/maintenanceScheduler";
@@ -19,7 +20,20 @@ export default function MaintenanceVisits() {
 
   const [visits, setVisits] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") || "";
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    const newParams = new URLSearchParams(searchParams);
+    if (val) {
+      newParams.set("search", val);
+    } else {
+      newParams.delete("search");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
@@ -180,7 +194,7 @@ export default function MaintenanceVisits() {
           className="border p-2 rounded-lg bg-white dark:bg-gray-950 dark:text-white"
           placeholder="Search visit/customer/email/address/plan..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
         />
 
         <select
@@ -198,7 +212,9 @@ export default function MaintenanceVisits() {
         <button
           className="px-3 py-2 rounded-lg dark:bg-gray-700 bg-gray-200 hover:bg-gray-800"
           onClick={() => {
-            setSearch("");
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("search");
+            setSearchParams(newParams, { replace: true });
             setStatusFilter("");
           }}
         >

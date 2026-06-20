@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTasks } from "../../context/TasksContext";
 import { getTasksInRange } from "../../utils/getTasksInRange";
 
 const Calendar = () => {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
 
   const { tasks, loading, error, fetchTasks } = useTasks();
 
@@ -16,10 +18,25 @@ const Calendar = () => {
 
   // Derived data ───────────────────────────────────────────────────────────
 
-  const filtered = useMemo(
-    () => getTasksInRange(tasks, from, to),
-    [tasks, from, to],
-  );
+  const filtered = useMemo(() => {
+    const list = getTasksInRange(tasks, from, to) || [];
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((t) => {
+      const title = (t.title || "").toLowerCase();
+      const project = (t.projectName || "").toLowerCase();
+      const worker = (t.worker || "").toLowerCase();
+      const priority = (t.priority || "").toLowerCase();
+      const status = (t.status || "").toLowerCase();
+      return (
+        title.includes(q) ||
+        project.includes(q) ||
+        worker.includes(q) ||
+        priority.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [tasks, from, to, searchQuery]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -86,6 +103,9 @@ const Calendar = () => {
         <button
           className="bg-gray-200 dark:bg-gray-900 text-gray-500 dark:text-gray-300 hover:bg-gray-700 px-4 py-2 rounded-xl"
           onClick={() => {
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("search");
+            setSearchParams(newParams, { replace: true });
             setFrom("");
             setTo("");
           }}

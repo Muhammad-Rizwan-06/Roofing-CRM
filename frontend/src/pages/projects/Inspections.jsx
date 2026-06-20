@@ -1,7 +1,7 @@
 
 // export default Inspections;
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useProjects } from "../../context/ProjectsContext";
 import { useContracts } from "../../context/ContractContext"; 
 
@@ -31,6 +31,26 @@ const Inspections = () => {
   const [inspections, setInspections] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredInspections = useMemo(() => {
+    if (!searchQuery.trim()) return inspections || [];
+    const q = searchQuery.toLowerCase();
+    return (inspections || []).filter((i) => {
+      const projectName = (i.projectName || "").toLowerCase();
+      const client = (i.client || "").toLowerCase();
+      const inspector = (i.inspector || "").toLowerCase();
+      const status = (i.status || "").toLowerCase();
+      return (
+        projectName.includes(q) ||
+        client.includes(q) ||
+        inspector.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [inspections, searchQuery]);
+
   const [form, setForm] = useState({
     projectId: "",
     date: new Date().toISOString().slice(0, 10),
@@ -52,10 +72,10 @@ const Inspections = () => {
 
   const upcomingCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return inspections.filter(
+    return filteredInspections.filter(
       (i) => i.status === "Scheduled" && i.date >= today,
     ).length;
-  }, [inspections]);
+  }, [filteredInspections]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -248,7 +268,7 @@ const Inspections = () => {
             </tr>
           </thead>
           <tbody>
-            {inspections.map((i) => (
+            {filteredInspections.map((i) => (
               <tr
                 key={i.inspectionId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -304,7 +324,7 @@ const Inspections = () => {
               </tr>
             ))}
 
-            {inspections.length === 0 && (
+            {filteredInspections.length === 0 && (
               <tr>
                 <td
                   colSpan={6}

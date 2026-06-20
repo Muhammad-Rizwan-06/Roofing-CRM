@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import { useRole } from "../../context/RoleContext";
 import { generateSalt, hashPassword } from "../../utils/password";
 
 const UserManagement = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const {
     employees: users,
     loading,
@@ -145,7 +149,24 @@ const UserManagement = () => {
     }
   };
 
-  const total = useMemo(() => users.length, [users]);
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return users || [];
+    const q = searchQuery.toLowerCase();
+    return (users || []).filter((u) => {
+      const name = (u.name || "").toLowerCase();
+      const email = (u.email || "").toLowerCase();
+      const phone = (u.phone || "").toLowerCase();
+      const roleName = (u.roleName || "").toLowerCase();
+      const status = (u.status || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        roleName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [users, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -166,7 +187,7 @@ const UserManagement = () => {
             Total Users
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {loading ? "..." : users.length}
+            {loading ? "..." : filteredUsers.length}
           </p>
         </div>
       </div>
@@ -279,7 +300,7 @@ const UserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr
                 key={u.userId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -315,7 +336,7 @@ const UserManagement = () => {
               </tr>
             ))}
 
-            {users.length === 0 && (
+            {filteredUsers.length === 0 && !loading && (
               <tr>
                 <td
                   colSpan={5}

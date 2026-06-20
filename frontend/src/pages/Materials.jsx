@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
 import { useMaterials } from "../context/MaterialsContext";
@@ -6,6 +7,9 @@ import { useSuppliers } from "../context/SuppliersContext";
 import { useCompany } from "../context/CompanyContext";
 
 const Materials = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const { user } = useAuth();
   const { materials, loading, error, fetchMaterials, addMaterial, updateMaterial, adjustStock: adjustStockAPI, deleteMaterial } = useMaterials();
   const { suppliers, fetchSuppliers } = useSuppliers();
@@ -19,7 +23,6 @@ const Materials = () => {
   const canManageInventory = isAdmin || isPM;
   const readOnly = isAccountant;
 
-  const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
   const [editId, setEditId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +53,17 @@ const Materials = () => {
   const supplierName = (supplierId) =>
       suppliers.find((s) => (s.supplierId) === (supplierId))?.name || "—";
 
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    const newParams = new URLSearchParams(searchParams);
+    if (val) {
+      newParams.set("search", val);
+    } else {
+      newParams.delete("search");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
   const lowStockCount = useMemo(() => {
     return materials.filter(
       (m) => Number(m.onHand || 0) <= Number(m.reorderLevel || 0)
@@ -58,9 +72,17 @@ const Materials = () => {
 
   const filtered = useMemo(() => {
     return materials.filter((m) => {
-      const matchSearch =
-        (m.name || "").toLowerCase().includes(search.toLowerCase()) ||
-        (m.sku || "").toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !searchQuery.trim()
+        ? true
+        : (() => {
+            const q = searchQuery.toLowerCase();
+            const name = (m.name || "").toLowerCase();
+            const sku = (m.sku || "").toLowerCase();
+            const supplier = supplierName(m.supplierId).toLowerCase();
+            return (
+              name.includes(q) || sku.includes(q) || supplier.includes(q)
+            );
+          })();
 
       const matchSupplier = supplierFilter
         ? String(m.supplierId) === String(supplierFilter)
@@ -68,7 +90,7 @@ const Materials = () => {
 
       return matchSearch && matchSupplier;
     });
-  }, [materials, search, supplierFilter]);
+  }, [materials, searchQuery, supplierFilter, suppliers]);
 
   const resetForm = () => {
     setEditId(null);
@@ -202,8 +224,8 @@ const Materials = () => {
         <input
           className="border p-3 rounded-xl w-full md:w-[320px] bg-white dark:bg-gray-950 dark:text-white"
           placeholder="Search by name or SKU..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchQuery}
+          onChange={handleSearchChange}
         />
 
         <div className="flex gap-3">
@@ -223,7 +245,9 @@ const Materials = () => {
           <button
             className="bg-gray-200 dark:bg-gray-700  hover:bg-gray-600 px-4 py-3 rounded-xl"
             onClick={() => {
-              setSearch("");
+              const newParams = new URLSearchParams(searchParams);
+              newParams.delete("search");
+              setSearchParams(newParams, { replace: true });
               setSupplierFilter("");
             }}
             type="button"
@@ -483,7 +507,7 @@ const Materials = () => {
               );
             })}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <tr>
                 <td
                   colSpan={canManageInventory ? 8 : 7}

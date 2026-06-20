@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
 import { useSuppliers } from "../../context/SuppliersContext";
 
 const Suppliers = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const { user } = useAuth();
   const { suppliers, loading, error, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
   const roleName = user?.roleName;
@@ -32,6 +36,25 @@ const Suppliers = () => {
   useEffect(() => {
     fetchSuppliers();
   }, []);
+
+  const filteredSuppliers = useMemo(() => {
+    if (!searchQuery.trim()) return suppliers || [];
+    const q = searchQuery.toLowerCase();
+    return (suppliers || []).filter((s) => {
+      const name = (s.name || "").toLowerCase();
+      const contactName = (s.contactName || "").toLowerCase();
+      const phone = (s.phone || "").toLowerCase();
+      const email = (s.email || "").toLowerCase();
+      const address = (s.address || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        contactName.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q) ||
+        address.includes(q)
+      );
+    });
+  }, [suppliers, searchQuery]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -124,7 +147,7 @@ const Suppliers = () => {
             Total Suppliers
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">
-            {loading ? "—" : suppliers.length}
+            {loading ? "—" : filteredSuppliers.length}
           </p>
         </div>
       </div>
@@ -273,7 +296,7 @@ const Suppliers = () => {
                 </tr>
               </thead>
               <tbody>
-                {suppliers.map((s) => (
+                {filteredSuppliers.map((s) => (
                   <tr
                     key={s.supplierId}
                     className="border-t border-gray-100 dark:border-gray-800"
@@ -312,7 +335,7 @@ const Suppliers = () => {
                   </tr>
                 ))}
 
-                {suppliers.length === 0 && (
+                {filteredSuppliers.length === 0 && !loading && (
                   <tr>
                     <td
                       colSpan={canManageSuppliers ? 5 : 4}

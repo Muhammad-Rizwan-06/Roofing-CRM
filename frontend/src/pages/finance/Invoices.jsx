@@ -19,6 +19,7 @@ const Invoices = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillProjectId = searchParams.get("projectId") || "";
+  const searchQuery = searchParams.get("search") || "";
 
   const [open, setOpen] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -59,19 +60,36 @@ const Invoices = () => {
     if (prefillProjectId) setOpen(true);
   }, [prefillProjectId]);
 
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) return invoices || [];
+    const q = searchQuery.toLowerCase();
+    return (invoices || []).filter((inv) => {
+      const invoiceNo = (inv.invoiceNo || "").toLowerCase();
+      const customer = (inv.customer || "").toLowerCase();
+      const projectName = (inv.projectName || "").toLowerCase();
+      const status = (inv.status || "").toLowerCase();
+      return (
+        invoiceNo.includes(q) ||
+        customer.includes(q) ||
+        projectName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [invoices, searchQuery]);
+
   const metrics = useMemo(() => {
-    const totalInvoiced = invoices.reduce(
+    const totalInvoiced = filteredInvoices.reduce(
       (s, inv) => s + calcTotal(inv.items, inv.taxRate),
       0,
     );
-    const paid = invoices.reduce(
+    const paid = filteredInvoices.reduce(
       (s, inv) => s + Number(inv.amountPaid || 0),
       0,
     );
     const outstanding = totalInvoiced - paid;
-    const countPaid = invoices.filter((i) => i.status === "Paid").length;
+    const countPaid = filteredInvoices.filter((i) => i.status === "Paid").length;
     return { totalInvoiced, paid, outstanding, countPaid };
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const addInvoice = async (payload) => {
     try {
@@ -205,7 +223,7 @@ const Invoices = () => {
           </thead>
 
           <tbody>
-            {invoices.map((inv) => {
+            {filteredInvoices.map((inv) => {
               const total = calcTotal(inv.items, inv.taxRate);
               const paid = Number(inv.amountPaid || 0);
 
@@ -278,7 +296,7 @@ const Invoices = () => {
               );
             })}
 
-            {invoices.length === 0 && !invoicesLoading && (
+            {filteredInvoices.length === 0 && !invoicesLoading && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"

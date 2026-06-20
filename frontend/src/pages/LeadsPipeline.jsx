@@ -1,5 +1,6 @@
 // src/pages/LeadsPipeline.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AddLeadModal from "../components/leads/AddLeadModal";
 import {
   LEAD_PIPELINE_STAGES,
@@ -37,6 +38,20 @@ const LeadsPipeline = () => {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
   const { company, getCompany } = useCompany();
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return leads || [];
+    const q = searchQuery.toLowerCase();
+    return (leads || []).filter((lead) => {
+      const name = (lead.name || "").toLowerCase();
+      const email = (lead.email || "").toLowerCase();
+      const phone = (lead.phone || "").toLowerCase();
+      return name.includes(q) || email.includes(q) || phone.includes(q);
+    });
+  }, [leads, searchQuery]);
 
   useEffect(() => {
     getCompany();
@@ -196,21 +211,21 @@ const LeadsPipeline = () => {
   const grouped = useMemo(() => {
     const map = {};
     LEAD_PIPELINE_STAGES.forEach((s) => (map[s] = []));
-    leads.forEach((l) => {
+    filteredLeads.forEach((l) => {
       const stage = LEAD_PIPELINE_STAGES.includes(l.status) ? l.status : "New";
       map[stage].push(l);
     });
     return map;
-  }, [leads]);
+  }, [filteredLeads]);
 
   // ---------- Forecast metrics (industry-style) ----------
   const metrics = useMemo(() => {
-    const totalLeads = leads.length;
-    const totalValue = leads.reduce(
+    const totalLeads = filteredLeads.length;
+    const totalValue = filteredLeads.reduce(
       (sum, l) => sum + Number(l.estimatedValue || 0),
       0,
     );
-    const weightedForecast = leads.reduce((sum, l) => {
+    const weightedForecast = filteredLeads.reduce((sum, l) => {
       const p = STAGE_PROBABILITY[l.status] ?? 0;
       return sum + Number(l.estimatedValue || 0) * p;
     }, 0);
@@ -221,7 +236,7 @@ const LeadsPipeline = () => {
     );
 
     return { totalLeads, totalValue, weightedForecast, wonValue };
-  }, [leads, grouped]);
+  }, [filteredLeads, grouped]);
 
   // ---------- Drag & Drop ----------
   const onDragStart = (e, leadId) => {

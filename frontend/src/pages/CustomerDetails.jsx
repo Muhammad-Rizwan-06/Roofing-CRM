@@ -35,8 +35,8 @@ const CustomerDetails = () => {
 
   return (
     <div className="space-y-6 p-4 ">
-      <h1 className="text-2xl font-bold text-white">{userId}</h1>
-      <p className="text-gray-600 dark:text-gray-400">{name}</p>
+      <h1 className="text-2xl font-bold dark:text-white">{name}</h1>
+      {/* <p className="text-gray-600 dark:text-gray-400">{name}</p> */}
 
       <CustomerProjects projects={customerProjects} />
     </div>

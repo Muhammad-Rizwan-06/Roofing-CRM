@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ProjectsTable from "../components/projects/ProjectsTable";
 import AddProjectModal from "../components/projects/AddProjectModal";
 import { useAuth } from "../context/AuthContext";
@@ -45,7 +46,20 @@ const Projects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProject, setEditProject] = useState(null);
 
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") || "";
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    const newParams = new URLSearchParams(searchParams);
+    if (val) {
+      newParams.set("search", val);
+    } else {
+      newParams.delete("search");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
   const [statusFilter, setStatusFilter] = useState("");
   const [supervisorFilter, setSupervisorFilter] = useState("");
 
@@ -265,7 +279,7 @@ const Projects = () => {
           type="text"
           placeholder="Search project..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
           className="border p-2 rounded w-60 dark:bg-gray-800 dark:text-white"
         />
 
@@ -295,7 +309,9 @@ const Projects = () => {
 
         <button
           onClick={() => {
-            setSearch("");
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("search");
+            setSearchParams(newParams, { replace: true });
             setStatusFilter("");
             setSupervisorFilter("");
           }}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useEmployees } from "../../context/EmployeesContext";
 
 import { useCompany } from "../../context/CompanyContext";
@@ -28,6 +29,26 @@ const TeamsEmployees = () => {
     availability: "Available",
   });
   const { company, getCompany } = useCompany();
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredEmployees = useMemo(() => {
+    if (!searchQuery.trim()) return employees || [];
+    const q = searchQuery.toLowerCase();
+    return (employees || []).filter((e) => {
+      const name = (e.name || "").toLowerCase();
+      const role = (e.role || "").toLowerCase();
+      const phone = (e.phone || "").toLowerCase();
+      const email = (e.email || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        role.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q)
+      );
+    });
+  }, [employees, searchQuery]);
 
   useEffect(() => {
     getCompany();
@@ -103,7 +124,7 @@ const TeamsEmployees = () => {
     if (editId === employeeId) reset();
   };
 
-  const total = useMemo(() => employees.length, [employees]);
+  const total = useMemo(() => filteredEmployees.length, [filteredEmployees]);
 
   return (
     <div className="space-y-6">
@@ -256,7 +277,7 @@ const TeamsEmployees = () => {
             </tr>
           </thead>
           <tbody>
-            {employees.map((e) => (
+            {filteredEmployees.map((e) => (
               <tr
                 key={e.employeeId}
                 className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
@@ -293,7 +314,7 @@ const TeamsEmployees = () => {
               </tr>
             ))}
 
-            {employees.length === 0 && (
+            {filteredEmployees.length === 0 && (
               <tr>
                 <td
                   colSpan={6}

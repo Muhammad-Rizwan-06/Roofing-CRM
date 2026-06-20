@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
 import { usePurchaseOrders } from "../../context/PurchaseOrdersContext";
@@ -11,6 +12,9 @@ const calcTotal = (items = []) =>
   items.reduce((s, it) => s + Number(it.qty || 0) * Number(it.unitCost || 0), 0);
 
 const PurchaseOrders = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const { user } = useAuth();
   const { orders, loading, error, fetchOrders, addOrder, setStatus: setStatusAPI, markReceived: markReceivedAPI, deleteOrder } = usePurchaseOrders();
   const { suppliers, fetchSuppliers } = useSuppliers();
@@ -65,6 +69,23 @@ const PurchaseOrders = () => {
   );
 
   const total = useMemo(() => calcTotal(form.items), [form.items]);
+
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery.trim()) return orders || [];
+    const q = searchQuery.toLowerCase();
+    return (orders || []).filter((po) => {
+      const poNo = (po.poNo || "").toLowerCase();
+      const supplierName = (po.supplierName || "").toLowerCase();
+      const projectName = (po.projectName || "").toLowerCase();
+      const status = (po.status || "").toLowerCase();
+      return (
+        poNo.includes(q) ||
+        supplierName.includes(q) ||
+        projectName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [orders, searchQuery]);
 
   const updateItem = (idx, key, value) => {
     if (!canManagePO) return;
@@ -445,7 +466,7 @@ const PurchaseOrders = () => {
           </thead>
 
           <tbody>
-            {orders.map((po) => (
+            {filteredOrders.map((po) => (
               <tr
                 key={po.orderId}
                 className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-950"
@@ -509,7 +530,7 @@ const PurchaseOrders = () => {
               </tr>
             ))}
 
-            {orders.length === 0 && (
+            {filteredOrders.length === 0 && !loading && (
               <tr>
                 <td
                   colSpan={canManagePO ? 7 : 6}

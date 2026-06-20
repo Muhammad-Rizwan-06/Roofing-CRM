@@ -36,6 +36,7 @@ const Estimates = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillLeadId = searchParams.get("leadId") || "";
+  const searchQuery = searchParams.get("search") || "";
 
   const [open, setOpen] = useState(false);
 
@@ -73,16 +74,35 @@ const Estimates = () => {
     if (prefillLeadId) setOpen(true);
   }, [prefillLeadId]);
 
+  const filteredEstimates = useMemo(() => {
+    if (!searchQuery.trim()) return estimates || [];
+    const q = searchQuery.toLowerCase();
+    return (estimates || []).filter((e) => {
+      const estimateNo = (e.estimateNo || "").toLowerCase();
+      const customer = (e.customer || "").toLowerCase();
+      const leadName = (e.leadName || "").toLowerCase();
+      const projectName = (e.projectName || "").toLowerCase();
+      const status = (e.status || "").toLowerCase();
+      return (
+        estimateNo.includes(q) ||
+        customer.includes(q) ||
+        leadName.includes(q) ||
+        projectName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [estimates, searchQuery]);
+
   const metrics = useMemo(() => {
-    const total = estimates.length;
-    const accepted = estimates.filter((e) => e.status === "Accepted").length;
-    const sent = estimates.filter((e) => e.status === "Sent").length;
-    const totalValue = estimates.reduce(
+    const total = filteredEstimates.length;
+    const accepted = filteredEstimates.filter((e) => e.status === "Accepted").length;
+    const sent = filteredEstimates.filter((e) => e.status === "Sent").length;
+    const totalValue = filteredEstimates.reduce(
       (s, e) => s + calcTotal(e.items, e.taxRate),
       0,
     );
     return { total, accepted, sent, totalValue };
-  }, [estimates]);
+  }, [filteredEstimates]);
 
   // ─── Lead stage sync ─────────────────────────────────────────────────────
 
@@ -277,7 +297,7 @@ const Estimates = () => {
 
           <tbody>
 
-            {estimates.map((e) => {
+            {filteredEstimates.map((e) => {
                 const total = calcTotal(e.items, e.taxRate);
                 return (
                   <tr
@@ -342,7 +362,7 @@ const Estimates = () => {
                 );
               })}
 
-            {!estimatesLoading && estimates.length === 0 && (
+            {!estimatesLoading && filteredEstimates.length === 0 && (
               <tr>
                 <td
                   className="p-6 text-center text-gray-500 dark:text-gray-300"

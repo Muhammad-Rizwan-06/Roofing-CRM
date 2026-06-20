@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSubcontractors } from "../../context/SubContractorContext";
 import { useCompany } from "../../context/CompanyContext";
 
@@ -27,6 +28,26 @@ const Subcontractors = () => {
     active: "Yes",
   });
   const { company, getCompany } = useCompany();
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredSubcontractors = useMemo(() => {
+    if (!searchQuery.trim()) return subcontractors || [];
+    const q = searchQuery.toLowerCase();
+    return (subcontractors || []).filter((s) => {
+      const name = (s.name || "").toLowerCase();
+      const trade = (s.trade || "").toLowerCase();
+      const phone = (s.phone || "").toLowerCase();
+      const email = (s.email || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        trade.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q)
+      );
+    });
+  }, [subcontractors, searchQuery]);
 
   useEffect(() => {
     getCompany();
@@ -104,7 +125,7 @@ const Subcontractors = () => {
     if (editId === subcontractorId) reset();
   };
 
-  const total = useMemo(() => subcontractors.length, [subcontractors]);
+  const total = useMemo(() => filteredSubcontractors.length, [filteredSubcontractors]);
 
   return (
     <div className="space-y-6">
@@ -256,7 +277,7 @@ const Subcontractors = () => {
             </tr>
           </thead>
           <tbody>
-            {subcontractors.map((s) => (
+            {filteredSubcontractors.map((s) => (
               <tr
                 key={s.subcontractorId}
                 className="border-t border-gray-100 dark:border-gray-800"
@@ -289,7 +310,7 @@ const Subcontractors = () => {
                 </td>
               </tr>
             ))}
-            {subcontractors.length === 0 && (
+            {filteredSubcontractors.length === 0 && (
               <tr>
                 <td
                   colSpan={5}

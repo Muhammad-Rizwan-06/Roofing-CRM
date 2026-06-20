@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useProjects } from "../../context/ProjectsContext";
 
 const daysBetween = (start, end) => {
@@ -12,6 +12,20 @@ const daysBetween = (start, end) => {
 const ProjectSchedule = () => {
   const { projects, loading, error, getAll, updateProject } = useProjects();
   const [editingId, setEditingId] = useState(null);
+
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects || [];
+    const q = searchQuery.toLowerCase();
+    return (projects || []).filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const client = (p.client || "").toLowerCase();
+      const status = (p.status || "").toLowerCase();
+      return name.includes(q) || client.includes(q) || status.includes(q);
+    });
+  }, [projects, searchQuery]);
 
   const [form, setForm] = useState({
     startDate: "",
@@ -59,8 +73,8 @@ const ProjectSchedule = () => {
   };
 
   const scheduledCount = useMemo(
-    () => projects.filter((p) => p.startDate || p.endDate).length,
-    [projects],
+    () => filteredProjects.filter((p) => p.startDate || p.endDate).length,
+    [filteredProjects],
   );
 
 
@@ -111,7 +125,7 @@ const ProjectSchedule = () => {
           </thead>
 
           <tbody>
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const duration =
                 p.startDate && p.endDate
                   ? daysBetween(p.startDate, p.endDate)
@@ -207,7 +221,7 @@ const ProjectSchedule = () => {
               );
             })}
 
-            {projects.length === 0 && (
+            {filteredProjects.length === 0 && (
               <tr>
                 <td
                   colSpan={7}

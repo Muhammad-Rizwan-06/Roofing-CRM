@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ROLE } from "../config/accessControl";
 import { useTasks } from "../context/TasksContext";
@@ -144,10 +145,28 @@ const Tasks = () => {
   // ── Derived data ───────────────────────────────────────────────────────────
   const statuses = ["Pending", "In Progress", "Completed"];
 
-  const visibleTasks = useMemo(() => {
-    if (!isWorker) return tasks;
-    return tasks.filter(isMyTask);
-  }, [tasks, isWorker, myEmployeeId, user?.name]);
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
+  const searchedTasks = useMemo(() => {
+    const list = !isWorker ? tasks : tasks.filter(isMyTask);
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((t) => {
+      const title = (t.title || "").toLowerCase();
+      const project = (t.projectName || "").toLowerCase();
+      const worker = (t.worker || "").toLowerCase();
+      const priority = (t.priority || "").toLowerCase();
+      const status = (t.status || "").toLowerCase();
+      return (
+        title.includes(q) ||
+        project.includes(q) ||
+        worker.includes(q) ||
+        priority.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [tasks, isWorker, myEmployeeId, user?.name, searchQuery]);
 
   const getProjectName = (id) =>
     projects.find((p) => String(p.projectId) === String(id))?.name || "N/A";
@@ -301,10 +320,10 @@ const Tasks = () => {
               </tr>
             </thead>
             <tbody>
-              {visibleTasks.map((t) => (
+              {searchedTasks.map((t) => (
                 <tr
                   key={t.taskId}
-                  className="border-t dark:bg-gray-900 hover:bg-gray-800"
+                  className="border-t dark:bg-gray-900 hover:bg-gray-200"
                 >
                   <td className="px-4 py-3">{t.title}</td>
                   <td className="px-4 py-3">
@@ -339,7 +358,7 @@ const Tasks = () => {
                   )}
                 </tr>
               ))}
-              {visibleTasks.length === 0 && (
+              {searchedTasks.length === 0 && (
                 <tr>
                   <td
                     colSpan={canManageTasks ? 7 : 6}
@@ -365,7 +384,7 @@ const Tasks = () => {
             >
               <h2 className="font-semibold mb-4">{status}</h2>
               <div className="space-y-3">
-                {visibleTasks
+                {searchedTasks
                   .filter((t) => t.status === status)
                   .map((t) => (
                     <div
