@@ -1,9 +1,8 @@
-
 // export default Inspections;
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useProjects } from "../../context/ProjectsContext";
-import { useContracts } from "../../context/ContractContext"; 
+import { useContracts } from "../../context/ContractContext";
 
 const INSPECTION_STATUSES = [
   "Scheduled",
@@ -17,6 +16,7 @@ const INSPECTION_STATUSES = [
 const Inspections = () => {
   const {
     projects,
+    inspections,
     loading,
     error,
     getAll,
@@ -26,9 +26,8 @@ const Inspections = () => {
     getAllInspections,
   } = useProjects();
 
-  const { updateContractInspection, deleteContractInspection } = useContracts(); // ✅ add
+  const { updateContractInspection, deleteContractInspection } = useContracts();
 
-  const [inspections, setInspections] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [searchParams] = useSearchParams();
@@ -59,16 +58,11 @@ const Inspections = () => {
     notes: "",
   });
 
-  const fetchInspections = useCallback(async () => {
-    const result = await getAllInspections();
-    if (result.ok) setInspections(result.data);
-  }, [getAllInspections]);
-
-  // Fetch projects for dropdown and inspections for the table
+  // Fetch projects and inspections on mount
   useEffect(() => {
     getAll();
-    fetchInspections();
-  }, [getAll, fetchInspections]);
+    getAllInspections();
+  }, [getAll, getAllInspections]);
 
   const upcomingCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -99,7 +93,6 @@ const Inspections = () => {
 
     if (!result.ok) return alert(result.message);
 
-    await fetchInspections(); // ✅ refresh list
     setForm({
       projectId: "",
       date: new Date().toISOString().slice(0, 10),
@@ -122,8 +115,6 @@ const Inspections = () => {
       // ✅ route to projects API
       await updateInspection(projectId, rawId, { status });
     }
-
-    await fetchInspections();
   };
 
   const handleDelete = async (projectId, inspectionId) => {
@@ -143,7 +134,6 @@ const Inspections = () => {
     }
 
     if (!result.ok) return alert(result.message);
-    await fetchInspections();
   };
 
   return (

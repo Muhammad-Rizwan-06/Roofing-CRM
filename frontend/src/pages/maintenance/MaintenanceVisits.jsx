@@ -16,7 +16,7 @@ export default function MaintenanceVisits() {
     updateContractInspection,
   } = useContracts();
 
-  const { getAll: getAllProjects } = useProjects();
+  const { getAll: getAllProjects, inspections } = useProjects();
 
   const [visits, setVisits] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -220,7 +220,7 @@ export default function MaintenanceVisits() {
         >
           Reset
         </button>
-{/* 
+        {/* 
         <button
           className="ml-auto px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           onClick={handleRefresh} // ✅ fixed — was using addInspection which doesn't exist here
@@ -283,9 +283,16 @@ export default function MaintenanceVisits() {
                   </td>
                   <td className="p3">
                     {v.inspectionId ? (
-                      <span className="text-gray-800 dark:text-gray-100">
-                        {v.inspectionId}
-                      </span>
+                      (() => {
+                        const inspection = inspections?.find(
+                          (i) => i.inspectionId === v.inspectionId,
+                        );
+                        return (
+                          <span className="text-gray-800 dark:text-gray-100">
+                            {inspection?.client || v.inspectionId}
+                          </span>
+                        );
+                      })()
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}

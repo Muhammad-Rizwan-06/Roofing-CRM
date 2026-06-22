@@ -14,6 +14,7 @@ export const useProjects = () => {
 export const ProjectsProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
   const [dashboardProjects, setDashboardProjects] = useState([]);
+  const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -239,6 +240,8 @@ export const ProjectsProvider = ({ children }) => {
             : p,
         ),
       );
+      // Also add to global inspections state
+      setInspections((prev) => [...prev, data]);
       return { ok: true, data, message: "Inspection added successfully" };
     } catch (err) {
       const errorMessage = err.message || "Failed to add inspection";
@@ -290,10 +293,16 @@ export const ProjectsProvider = ({ children }) => {
               ? {
                   ...p,
                   inspections: (p.inspections || []).map((i) =>
-                    i.inspectionId === `INSPECTION#${inspectionId}` ? data : i,
+                    i.inspectionId === inspectionId ? data : i,
                   ),
                 }
               : p,
+          ),
+        );
+        // Also update global inspections state
+        setInspections((prev) =>
+          prev.map((i) =>
+            i.inspectionId === inspectionId ? data : i,
           ),
         );
         return { ok: true, data, message: "Inspection updated successfully" };
@@ -322,11 +331,15 @@ export const ProjectsProvider = ({ children }) => {
             ? {
                 ...p,
                 inspections: (p.inspections || []).filter(
-                  (i) => i.inspectionId !== `INSPECTION#${inspectionId}`,
+                  (i) => i.inspectionId !== inspectionId,
                 ),
               }
             : p,
         ),
+      );
+      // Also remove from global inspections state
+      setInspections((prev) =>
+        prev.filter((i) => i.inspectionId !== inspectionId),
       );
       return { ok: true, message: "Inspection deleted successfully" };
     } catch (err) {
@@ -343,7 +356,9 @@ export const ProjectsProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await apiClient.get("/projects/inspections");
-      return { ok: true, data: response.inspections || [] };
+      const data = response.inspections || [];
+      setInspections(data);
+      return { ok: true, data };
     } catch (err) {
       const errorMessage = err.message || "Failed to fetch inspections";
       setError(errorMessage);
@@ -480,6 +495,7 @@ export const ProjectsProvider = ({ children }) => {
   const value = {
     projects,
     dashboardProjects,
+    inspections,
     loading,
     error,
     getAll,
