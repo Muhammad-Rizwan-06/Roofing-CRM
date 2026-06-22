@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import CustomerProjects from "../components/customers/CustomerProjects";
 import { useProjects } from "../context/ProjectsContext";
 
 const CustomerDetails = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+
   const { userId } = useParams();
   const { projects, loading, error, getAll } = useProjects();
 
@@ -18,6 +22,17 @@ const CustomerDetails = () => {
     [projects, userId],
   );
   const name = customerProjects[0]?.client || "Unknown Customer";
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return customerProjects || [];
+    const q = searchQuery.toLowerCase();
+    return (customerProjects || []).filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const client = (p.client || "").toLowerCase();
+      const status = (p.status || "").toLowerCase();
+      return name.includes(q) || client.includes(q) || status.includes(q);
+    });
+  }, [customerProjects, searchQuery]);
 
   if (error) {
     return (
@@ -38,7 +53,7 @@ const CustomerDetails = () => {
       <h1 className="text-2xl font-bold dark:text-white">{name}</h1>
       {/* <p className="text-gray-600 dark:text-gray-400">{name}</p> */}
 
-      <CustomerProjects projects={customerProjects} />
+      <CustomerProjects projects={filteredProjects} />
     </div>
   );
 };

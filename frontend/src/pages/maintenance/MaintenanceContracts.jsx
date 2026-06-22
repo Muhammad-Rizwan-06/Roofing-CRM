@@ -547,7 +547,7 @@ export default function MaintenanceContracts() {
                       onChange={(e) => handleCustomerSelect(e.target.value)}
                     >
                       <option value="">Select customer</option>
-                      {customers.map((c) => (
+                      {customers?.map((c) => (
                         <option key={c.userId} value={c.userId}>
                           {c.name} ({c.email})
                         </option>

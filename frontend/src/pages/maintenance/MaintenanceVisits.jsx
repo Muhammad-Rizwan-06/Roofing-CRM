@@ -190,12 +190,12 @@ export default function MaintenanceVisits() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow border border-gray-100 dark:border-gray-800 flex flex-wrap gap-3 items-center">
-        <input
+        {/* <input
           className="border p-2 rounded-lg bg-white dark:bg-gray-950 dark:text-white"
           placeholder="Search visit/customer/email/address/plan..."
           value={search}
           onChange={handleSearchChange}
-        />
+        /> */}
 
         <select
           className="border p-2 rounded-lg bg-white dark:bg-gray-950 dark:text-white"

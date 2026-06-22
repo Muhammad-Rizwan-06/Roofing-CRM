@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import InvoiceModal from "../../components/finance/InvoiceModal";
 import { useInvoices } from "../../context/InvoicesContext";
 import { useProjects } from "../../context/ProjectsContext";
@@ -17,6 +17,8 @@ const calcTotal = (items = [], taxRate = 0) => {
 
 const Invoices = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo;
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillProjectId = searchParams.get("projectId") || "";
   const searchQuery = searchParams.get("search") || "";
@@ -112,6 +114,10 @@ const Invoices = () => {
       if (result.ok) {
         // clear query param after creating (so refresh doesn't re-open)
         if (prefillProjectId) setSearchParams({});
+        // Navigate back to project if coming from project context
+        if (returnTo) {
+          setTimeout(() => navigate(returnTo), 0);
+        }
         return result;
       } else {
         setApiError(result.message || "Failed to create invoice");
@@ -315,6 +321,10 @@ const Invoices = () => {
         onClose={() => {
           setOpen(false);
           if (prefillProjectId) setSearchParams({});
+          // Navigate back to project if coming from project context
+          if (returnTo) {
+            setTimeout(() => navigate(returnTo), 0);
+          }
         }}
         onSave={addInvoice}
         projects={projects}

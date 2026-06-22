@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import UploadDocumentModal from "../../components/documents/UploadDocumentModal";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
@@ -14,6 +14,8 @@ const Attachments = () => {
   const canDelete = [ROLE.ADMIN, ROLE.PM].includes(roleName);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo;
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get("projectId") || "";
   const searchQuery = searchParams.get("search") || "";
@@ -53,9 +55,7 @@ const Attachments = () => {
       const projectName = (d.projectName || "").toLowerCase();
       const notes = (d.notes || "").toLowerCase();
       return (
-        fileName.includes(q) ||
-        projectName.includes(q) ||
-        notes.includes(q)
+        fileName.includes(q) || projectName.includes(q) || notes.includes(q)
       );
     });
   }, [documents, searchQuery]);
@@ -66,21 +66,43 @@ const Attachments = () => {
     // Just close the modal and refresh if needed
     setOpen(false);
     // Re-fetch to ensure UI is in sync with server
-    await fetchDocuments({ projectId: projectId || undefined, type: "attachment" });
+    await fetchDocuments({
+      projectId: projectId || undefined,
+      type: "attachment",
+    });
     if (projectId) setSearchParams({ projectId });
+    // Navigate back to project if coming from project context
+    if (returnTo) {
+      setTimeout(() => navigate(returnTo), 0);
+    }
   };
 
   const handleDelete = async (documentId) => {
-    if (!canDelete) { alert("You do not have permission to delete attachments."); return; }
+    if (!canDelete) {
+      alert("You do not have permission to delete attachments.");
+      return;
+    }
     await deleteDocument(documentId);
   };
 
-  const download = (doc) => {
+  const download = async (doc) => {
     if (!doc.fileUrl) return alert("File URL not available");
-    const a = document.createElement("a");
-    a.href     = doc.fileUrl;
-    a.download = doc.fileName;
-    a.click();
+    try {
+      const response = await fetch(doc.fileUrl);
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = doc.fileName || "download";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert("Download failed: " + (err.message || "Unknown error"));
+    }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -88,7 +110,9 @@ const Attachments = () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Attachments</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Attachments
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-300">
             Project-linked files (permits, notes, misc)
           </p>
@@ -99,12 +123,16 @@ const Attachments = () => {
           )}
         </div>
         {canUpload ? (
-          <button onClick={() => setOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">
+          <button
+            onClick={() => setOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+          >
             + Upload Attachment
           </button>
         ) : (
-          <div className="text-xs text-gray-500 dark:text-gray-300 mt-2">Upload disabled for your role.</div>
+          <div className="text-xs text-gray-500 dark:text-gray-300 mt-2">
+            Upload disabled for your role.
+          </div>
         )}
       </div>
       {error && (
@@ -114,7 +142,9 @@ const Attachments = () => {
       )}
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow overflow-hidden border border-gray-100 dark:border-gray-800">
-        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">Attachment List</div>
+        <div className="p-4 font-semibold text-gray-700 dark:text-gray-200">
+          Attachment List
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-300">
             <tr>
@@ -127,24 +157,44 @@ const Attachments = () => {
           </thead>
           <tbody>
             {filtered.map((d) => (
-              <tr key={d.documentId} className="border-t border-gray-100 dark:border-gray-800">
-                <td className="p-3 font-medium text-gray-800 dark:text-gray-100">{d.fileName}</td>
+              <tr
+                key={d.documentId}
+                className="border-t border-gray-100 dark:border-gray-800"
+              >
+                <td className="p-3 font-medium text-gray-800 dark:text-gray-100">
+                  {d.fileName}
+                </td>
                 <td className="p-3">
-                  <button className="text-blue-600 hover:underline" type="button"
-                    onClick={() => navigate(`/projects/${d.projectId}`)}>
+                  <button
+                    className="text-blue-600 hover:underline"
+                    type="button"
+                    onClick={() => navigate(`/projects/${d.projectId}`)}
+                  >
                     {d.projectName}
                   </button>
                 </td>
                 <td className="p-3 text-gray-600 dark:text-gray-300">
                   {d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : "—"}
                 </td>
-                <td className="p-3 text-gray-600 dark:text-gray-300">{d.notes || "—"}</td>
+                <td className="p-3 text-gray-600 dark:text-gray-300">
+                  {d.notes || "—"}
+                </td>
                 <td className="p-3 text-right space-x-3">
-                  <button className="text-indigo-600 hover:underline" type="button"
-                    onClick={() => download(d)}>Download</button>
+                  <button
+                    className="text-indigo-600 hover:underline"
+                    type="button"
+                    onClick={() => download(d)}
+                  >
+                    Download
+                  </button>
                   {canDelete ? (
-                    <button className="text-red-600 hover:underline" type="button"
-                      onClick={() => handleDelete(d.documentId)}>Delete</button>
+                    <button
+                      className="text-red-600 hover:underline"
+                      type="button"
+                      onClick={() => handleDelete(d.documentId)}
+                    >
+                      Delete
+                    </button>
                   ) : (
                     <span className="text-gray-400">—</span>
                   )}
@@ -153,7 +203,10 @@ const Attachments = () => {
             ))}
             {filtered.length === 0 && !loading && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-300">
+                <td
+                  colSpan={5}
+                  className="p-6 text-center text-gray-500 dark:text-gray-300"
+                >
                   No attachments uploaded.
                 </td>
               </tr>
@@ -167,6 +220,10 @@ const Attachments = () => {
         onClose={() => {
           setOpen(false);
           if (newUpload) setSearchParams(projectId ? { projectId } : {});
+          // Navigate back to project if coming from project context
+          if (returnTo) {
+            setTimeout(() => navigate(returnTo), 0);
+          }
         }}
         onUploaded={handleUpload}
         projects={projects}

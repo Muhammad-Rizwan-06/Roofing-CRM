@@ -321,7 +321,9 @@ const ProjectDetails = () => {
             {canCreateInvoice && (
               <button
                 onClick={() =>
-                  navigate(`/finance/invoices?projectId=${projectId}`)
+                  navigate(`/finance/invoices?projectId=${projectId}`, {
+                    state: { returnTo: `/projects/${projectId}` }
+                  })
                 }
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
               >
@@ -332,7 +334,9 @@ const ProjectDetails = () => {
             {canAddExpense && (
               <button
                 onClick={() =>
-                  navigate(`/finance/expenses?projectId=${projectId}`)
+                  navigate(`/finance/expenses?projectId=${projectId}`, {
+                    state: { returnTo: `/projects/${projectId}` }
+                  })
                 }
                 className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
               >
@@ -344,7 +348,9 @@ const ProjectDetails = () => {
             {canUploadContract && (
               <button
                 onClick={() =>
-                  navigate(`/documents/contracts?projectId=${projectId}&new=1`)
+                  navigate(`/documents/contracts?projectId=${projectId}&new=1`, {
+                    state: { returnTo: `/projects/${projectId}` }
+                  })
                 }
                 className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
               >
@@ -356,7 +362,9 @@ const ProjectDetails = () => {
               <>
                 <button
                   onClick={() =>
-                    navigate(`/documents/photos?projectId=${projectId}&new=1`)
+                    navigate(`/documents/photos?projectId=${projectId}&new=1`, {
+                      state: { returnTo: `/projects/${projectId}` }
+                    })
                   }
                   className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
                 >
@@ -367,6 +375,9 @@ const ProjectDetails = () => {
                   onClick={() =>
                     navigate(
                       `/documents/attachments?projectId=${projectId}&new=1`,
+                      {
+                        state: { returnTo: `/projects/${projectId}` }
+                      }
                     )
                   }
                   className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition"

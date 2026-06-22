@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ExpenseModal from "../../components/finance/ExpenseModal";
 import { useExpenses } from "../../context/ExpensesContext";
 import { useProjects } from "../../context/ProjectsContext";
@@ -9,6 +9,8 @@ import { useCompany } from "../../context/CompanyContext";
 
 const Expenses = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo;
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillProjectId = searchParams.get("projectId") || "";
   const searchQuery = searchParams.get("search") || "";
@@ -107,6 +109,10 @@ const Expenses = () => {
 
     if (prefillProjectId) setSearchParams({});
     setOpen(false);
+    // Navigate back to project if coming from project context
+    if (returnTo) {
+      setTimeout(() => navigate(returnTo), 0);
+    }
   };
 
   const handleDelete = async (expenseId) => {
@@ -116,6 +122,10 @@ const Expenses = () => {
   const handleClose = () => {
     setOpen(false);
     if (prefillProjectId) setSearchParams({});
+    // Navigate back to project if coming from project context
+    if (returnTo) {
+      setTimeout(() => navigate(returnTo), 0);
+    }
   };
 
   // ── Loading / Error ────────────────────────────────────────────────────────

@@ -221,12 +221,12 @@ const Materials = () => {
 
       {/* Search / Filter */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-        <input
+        {/* <input
           className="border p-3 rounded-xl w-full md:w-[320px] bg-white dark:bg-gray-950 dark:text-white"
           placeholder="Search by name or SKU..."
           value={searchQuery}
           onChange={handleSearchChange}
-        />
+        /> */}
 
         <div className="flex gap-3">
           <select

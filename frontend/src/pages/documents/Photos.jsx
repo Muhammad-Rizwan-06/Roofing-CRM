@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import UploadDocumentModal from "../../components/documents/UploadDocumentModal";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE } from "../../config/accessControl";
@@ -14,6 +14,8 @@ const Photos = () => {
   const canDelete = [ROLE.ADMIN, ROLE.PM].includes(roleName);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo;
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get("projectId") || "";
   const searchQuery = searchParams.get("search") || "";
@@ -69,6 +71,10 @@ const Photos = () => {
     // Re-fetch to ensure UI is in sync with server
     await fetchDocuments({ projectId: projectId || undefined, type: "photo" });
     if (projectId) setSearchParams({ projectId });
+    // Navigate back to project if coming from project context
+    if (returnTo) {
+      setTimeout(() => navigate(returnTo), 0);
+    }
   };
 
   const handleDelete = async (documentId) => {
@@ -176,6 +182,10 @@ const Photos = () => {
         onClose={() => {
           setOpen(false);
           if (newUpload) setSearchParams(projectId ? { projectId } : {});
+          // Navigate back to project if coming from project context
+          if (returnTo) {
+            setTimeout(() => navigate(returnTo), 0);
+          }
         }}
         onUploaded={handleUpload}
         projects={projects}
