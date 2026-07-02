@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useUser } from "../../context/UserContext";
 
 const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
@@ -138,10 +139,10 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-center z-50">
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-96 shadow-2xl">
-        <h2 className="text-xl font-bold mb-4">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
           {editProject ? "Edit Project" : "Add Project"}
         </h2>
 
@@ -181,7 +182,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           <input
             name="name"
             placeholder="Project Name"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.name}
             onChange={handleChange}
           />
@@ -192,7 +193,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
               name="customer"
               value={selectedCustomer}
               onChange={handleCustomerSelect}
-              className="w-full border p-2 rounded dark:bg-gray-900 bg-white"
+              className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">-- Select a customer --</option>
               {customers.map((c) => (
@@ -206,7 +207,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           <input
             name="client"
             placeholder="Client"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.client}
             onChange={handleChange}
             readOnly={isExisting && !!selectedCustomer}
@@ -216,7 +217,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           <input
             name="clientEmail"
             placeholder="Client Email (Portal)"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.clientEmail}
             onChange={handleChange}
             readOnly={isExisting && !!selectedCustomer}
@@ -234,7 +235,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
 
           <select
             name="status"
-            className="w-full border p-2 rounded dark:bg-gray-900 bg-white"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.status}
             onChange={handleChange}
           >
@@ -246,7 +247,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           <input
             name="supervisor"
             placeholder="Supervisor"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.supervisor}
             onChange={handleChange}
           />
@@ -254,7 +255,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           <input
             name="team"
             placeholder="Team"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.team}
             onChange={handleChange}
           />
@@ -263,7 +264,7 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
             name="budget"
             type="number"
             placeholder="Budget"
-            className="w-full border p-2 rounded"
+            className="w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={form.budget}
             onChange={handleChange}
           />
@@ -272,14 +273,14 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-500 rounded hover:bg-gray-700"
+              className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               {editProject ? "Update" : "Add"}
             </button>
@@ -293,7 +294,8 @@ const AddProjectModal = ({ isOpen, onClose, onAddProject, editProject }) => {
           )}
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

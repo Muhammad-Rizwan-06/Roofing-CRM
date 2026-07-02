@@ -77,10 +77,12 @@ const UserManagement = () => {
     };
 
     // unique email check
-    const emailTaken = users.some(
-      (u) => u.email === payloadBase.email && u.userId !== editId,
-    );
-    if (emailTaken) return alert("Email already exists");
+    if (!editId) {
+      const emailTaken = users.some(
+        (u) => u.email === payloadBase.email && u.userId !== editId,
+      );
+      if (emailTaken) return alert("Email already exists");
+    }
 
     const existingUser = editId ? users.find((u) => u.userId === editId) : null;
 
@@ -119,14 +121,14 @@ const UserManagement = () => {
 
   const onEdit = (u) => {
     setEditId(u.userId);
-    
+
     // Find roleId from roles if not directly available on user
     let roleId = u.roleId || "";
     if (!roleId && u.roleName) {
       const role = roles.find(r => r.name === u.roleName);
       roleId = role ? String(role.roleId) : "";
     }
-    
+
     setForm({
       name: u.name || "",
       email: u.email || "",

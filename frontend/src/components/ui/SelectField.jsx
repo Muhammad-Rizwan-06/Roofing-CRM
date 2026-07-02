@@ -1,18 +1,17 @@
-import React from "react";
-
 const SelectField = ({ label, name, value, onChange, options }) => {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm text-gray-600">{label}</label>
+      <label className="text-sm text-gray-600 dark:text-gray-400">{label}</label>
 
       <select
         name={name}
         value={value}
         onChange={onChange}
-        className="border rounded-lg px-3 py-2 dark:bg-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+        className="border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2
+          bg-white dark:bg-gray-950 text-gray-800 dark:text-white
+          outline-none focus:ring-2 focus:ring-blue-500 transition"
       >
         {options.map((opt, index) => {
-          // Handle both string options and object options with label/value
           if (typeof opt === "string") {
             return (
               <option key={index} value={opt}>

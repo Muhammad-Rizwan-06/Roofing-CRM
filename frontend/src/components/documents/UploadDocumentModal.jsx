@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDocuments } from "../../context/DocumentsContext";
 import { useAuth } from "../../context/AuthContext";
 
@@ -158,11 +159,11 @@ const UploadDocumentModal = ({
         notes,
         uploadedBy: user
           ? {
-              userId: user.userId,
-              name: user.name,
-              email: user.email,
-              roleName: user.roleName,
-            }
+            userId: user.userId,
+            name: user.name,
+            email: user.email,
+            roleName: user.roleName,
+          }
           : null,
       };
 
@@ -195,8 +196,8 @@ const UploadDocumentModal = ({
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800">
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
           <div>
@@ -275,13 +276,12 @@ const UploadDocumentModal = ({
                 )
                   pickFile();
               }}
-              className={`mt-1 rounded-2xl border-2 border-dashed p-4 transition ${
-                uploading || loading
-                  ? "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 cursor-not-allowed opacity-60"
-                  : dragOver
-                    ? "border-blue-600 bg-blue-50 dark:bg-gray-950 cursor-pointer"
-                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 cursor-pointer"
-              }`}
+              className={`mt-1 rounded-2xl border-2 border-dashed p-4 transition ${uploading || loading
+                ? "border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 cursor-not-allowed opacity-60"
+                : dragOver
+                  ? "border-blue-600 bg-blue-50 dark:bg-gray-950 cursor-pointer"
+                  : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 cursor-pointer"
+                }`}
               title="Drag & drop a file here, or click to browse"
             >
               {!file ? (
@@ -417,7 +417,8 @@ const UploadDocumentModal = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

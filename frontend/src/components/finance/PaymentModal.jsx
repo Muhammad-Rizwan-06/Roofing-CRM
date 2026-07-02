@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 const calcInvoiceTotal = (inv) => {
   const items = inv?.items || [];
@@ -120,8 +121,8 @@ const PaymentModal = ({
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
       <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-gray-900 shadow-xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800">
           <h3 className="font-semibold text-gray-800 dark:text-white">Record Payment</h3>
@@ -219,7 +220,8 @@ const PaymentModal = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

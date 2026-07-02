@@ -3,11 +3,16 @@
 /* ✅ Tailwind v4: enable class-based dark mode (uses .dark class on <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ✅ Dark mode global fix */
+/* ✅ Global background — ensures body is never transparent (fixes portal modal backdrop) */
 body {
   background-color: white;
 }
 
-.dark body {
-  background-color: #020617; /* same as gray-950 */
+html.dark body {
+  background-color: #020617;
+  /* gray-950 */
+}
+
+#root {
+  height: 100%;
 }

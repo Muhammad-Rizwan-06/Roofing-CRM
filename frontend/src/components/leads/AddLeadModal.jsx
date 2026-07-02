@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import InputField from "../ui/InputField";
 import SelectField from "../ui/SelectField";
 import Button from "../ui/Button";
@@ -106,8 +107,8 @@ const AddLeadModal = ({ setOpen, onAdd }) => {
     setOpen(false);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 backdrop-blur-sm flex justify-center items-center">
       <div className="bg-white dark:bg-gray-900 w-full max-w-md p-6 rounded-2xl shadow-lg space-y-4">
         <h2 className="text-xl font-bold dark:text-white text-gray-800">
           Add New Lead
@@ -151,7 +152,7 @@ const AddLeadModal = ({ setOpen, onAdd }) => {
               onChange={handleCustomerSelect}
               options={[
                 { label: "-- Select a customer --", value: "" },
-                ...customers.map((c) => ({
+                ...customers?.map((c) => ({
                   label: `${c.name} (${c.email})`,
                   value: c.userId,
                 })),
@@ -201,7 +202,7 @@ const AddLeadModal = ({ setOpen, onAdd }) => {
 
           {/* Estimated Value Input */}
           <InputField
-            label={`Estimated Value (${company?.currency || $})`}
+            label={`Estimated Value (${company?.currency || "$"})`}
             name="estimatedValue"
             type="number"
             value={form.estimatedValue}
@@ -231,7 +232,8 @@ const AddLeadModal = ({ setOpen, onAdd }) => {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
