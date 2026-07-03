@@ -90,10 +90,6 @@ const Login = () => {
         >
           {loading ? "Signing in..." : "Login"}
         </button>
-
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          If you are the first user, go to <b>/setup</b>.
-        </p>
       </form>
     </AuthShell>
   );
